@@ -4,6 +4,7 @@ import cartReducer from './slices/cartSlice'
 import productReducer from './slices/productSlice'
 import guestCartReducer from './slices/guestCartSlice'
 
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -12,5 +13,4 @@ export const store = configureStore({
     guestCart: guestCartReducer
   }
 })
-
 export default store

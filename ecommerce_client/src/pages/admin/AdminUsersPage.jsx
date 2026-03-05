@@ -77,7 +77,7 @@ const AdminUsersPage = () => {
                 });
             } else {
                 // Fallback for old API response format
-                const usersData = response.users || response.data || [];
+                const usersData = response.users || response;
                 setUsers(usersData);
                 
                 setStats({

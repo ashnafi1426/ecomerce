@@ -13,7 +13,7 @@ const CustomerPaymentMethodsPage = () => {
   const fetchPaymentMethods = async () => {
     try {
       const response = await api.get('/payments/methods')
-      setPaymentMethods(response.data.data || [])
+      setPaymentMethods(response.data || [])
     } catch (error) {
       toast.error('Failed to load payment methods')
     } finally {

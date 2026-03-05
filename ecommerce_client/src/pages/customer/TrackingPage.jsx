@@ -17,7 +17,7 @@ const TrackingPage = () => {
   const fetchOrder = async () => {
     try {
       const response = await api.get(`/orders/${id}`)
-      setOrder(response.data)
+      setOrder(response)
     } catch (error) {
       toast.error('Failed to load tracking information')
     } finally {

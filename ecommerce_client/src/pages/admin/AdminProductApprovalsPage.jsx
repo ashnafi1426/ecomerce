@@ -28,7 +28,7 @@ const AdminProductApprovalsPage = () => {
             setLoading(true);
             setError(null);
             const response = await adminAPI.getPendingApprovals(filters);
-            const productsData = response.products || response.data || [];
+            const productsData = response.products || response;
             
             // Format products for display
             const formattedProducts = productsData.map(product => ({

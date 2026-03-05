@@ -38,7 +38,35 @@ apiClient.interceptors.response.use(
       url: response.config?.url,
       hasData: !!response.data
     });
-    
+
+    // validateStatus accepts 200-599 so 4xx/5xx land here — reject them explicitly
+    if (response.status >= 400) {
+      const errorMessage =
+        response.data?.message ||
+        response.data?.error ||
+        `Request failed with status ${response.status}`;
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        toast.error('Session expired. Please login again.');
+      } else if (response.status === 403) {
+        toast.error('You do not have permission to perform this action');
+      } else if (response.status === 404) {
+        toast.error('Resource not found');
+      } else if (response.status >= 500) {
+        toast.error('Server error. Please try again later.');
+        console.error(`🔥 Server error ${response.status}:`, response.data);
+      } else {
+        toast.error(errorMessage);
+      }
+
+      return Promise.reject(new Error(errorMessage));
+    }
+
     // Simply return the response data
     return response.data;
   },
@@ -53,51 +81,19 @@ apiClient.interceptors.response.use(
       baseURL: error.config?.baseURL
     });
     
-    // Handle network errors (no response from server)
-    if (!error.response) {
-      if (error.code === 'ECONNABORTED') {
-        console.error('❌ Request timeout');
-        toast.error('Request timeout. Please check your connection.');
-        return Promise.reject(new Error('Request timeout. Please check your connection.'));
-      } else if (error.code === 'ERR_NETWORK') {
-        console.error('❌ Network error - Cannot reach server');
-        toast.error('Cannot connect to server. Please check if the backend is running.');
-        return Promise.reject(new Error('No response from server. Please check your connection.'));
-      } else {
-        console.error('❌ Network error - No response from server');
-        toast.error('Network error. Please check your internet connection.');
-        return Promise.reject(new Error('No response from server. Please check your connection.'));
-      }
+    // This interceptor only runs for network-level errors (no response at all)
+    // HTTP 4xx/5xx are handled in the success interceptor above via validateStatus
+    if (error.code === 'ECONNABORTED') {
+      console.error('❌ Request timeout');
+      toast.error('Request timeout. Please check your connection.');
+      return Promise.reject(new Error('Request timeout. Please check your connection.'));
+    } else if (error.code === 'ERR_NETWORK') {
+      console.error('❌ Network error - Cannot reach server');
+      toast.error('Cannot connect to server. Please check if the backend is running.');
+      return Promise.reject(new Error('No response from server. Please check your connection.'));
     }
-    
-    // Handle specific HTTP status codes
-    if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-      toast.error('Session expired. Please login again.');
-    } else if (error.response?.status === 403) {
-      toast.error('You do not have permission to perform this action');
-    } else if (error.response?.status === 404) {
-      toast.error('Resource not found');
-    } else if (error.response?.status === 500) {
-      toast.error('Server error. Please try again later.');
-    } else if (error.response?.status === 502) {
-      toast.error('Bad Gateway. The server is temporarily unavailable.');
-    } else if (error.response?.status === 503) {
-      toast.error('Service Unavailable. Please try again later.');
-    } else if (error.response?.status === 504) {
-      toast.error('Gateway Timeout. The server took too long to respond.');
-    }
-    
-    // Create a simple error message
-    const errorMessage = error.response?.data?.message || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'An error occurred';
+
+    const errorMessage = error.message || 'An error occurred';
     
     console.error('🔥 Rejecting with error message:', errorMessage);
     
@@ -275,8 +271,15 @@ export const adminAPI = {
   getPayments: (params) => api.get('/admin/payments', params),
   getPayouts: (params) => api.get('/admin/payouts', params),
   processPayout: (data) => api.post('/admin/payouts', data),
-  getRefunds: (params) => api.get('/admin/refunds', params),
-  approveRefund: (id) => api.post(`/admin/refunds/${id}/approve`),
+  getReturns: (params) => api.get('/returns', params),
+  getReturnStats: () => api.get('/returns/stats'),
+  approveReturn: (id, refundAmount) => api.post(`/returns/${id}/approve`, { refundAmount }),
+  rejectReturn: (id, rejectionReason) => api.post(`/returns/${id}/reject`, { rejectionReason }),
+  markReturnReceived: (id) => api.post(`/returns/${id}/mark-received`),
+  markReturnInspecting: (id) => api.post(`/returns/${id}/mark-inspecting`),
+  markReturnInspected: (id, data) => api.post(`/returns/${id}/mark-inspected`, data),
+  completeReturn: (id, refundTransactionId) => api.post(`/returns/${id}/complete`, { refundTransactionId }),
+  updateReturnStatus: (id, status) => api.patch(`/returns/${id}/status`, { status }),
   processRefund: (id, data) => api.post(`/admin/payments/${id}/refund`, data),
   
   // Stripe Admin Payment System
@@ -658,6 +661,7 @@ export const customerAPI = {
   getReturn: (id) => api.get(`/returns/${id}`),
   getReturnsByOrder: (orderId) => api.get(`/returns/order/${orderId}`),
   createReturn: (data) => api.post('/returns', data),
+  cancelReturn: (id) => api.post(`/returns/${id}/cancel`),
   
   // Wishlist
   getWishlist: () => api.get('/wishlist'),

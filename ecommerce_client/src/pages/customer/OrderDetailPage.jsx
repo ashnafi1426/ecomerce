@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import api from '../../config/api'
 import { toast } from 'react-toastify'
 import StartChatButton from '../../components/chat/StartChatButton'
+import StartSupportChatButton from '../../components/chat/StartSupportChatButton'
 
 const OrderDetailPage = () => {
   const { orderId } = useParams()
@@ -21,7 +22,7 @@ const OrderDetailPage = () => {
       
       // The API interceptor returns response.data, which is { success: true, data: {...} }
       // So we need to access response.data (not response.data.data)
-      const orderData = response.data || response
+      const orderData = response
       console.log('Setting order:', orderData)
       setOrder(orderData)
     } catch (error) {
@@ -83,10 +84,7 @@ const OrderDetailPage = () => {
         {/* Contact Support Button */}
         <div className="border-t border-gray-200 pt-4 mb-6">
           <div className="flex gap-3">
-            <StartChatButton
-              recipientId="support"
-              recipientName="Customer Support"
-              recipientRole="admin"
+            <StartSupportChatButton
               metadata={{
                 type: 'order_support',
                 orderId: order.id,
@@ -95,7 +93,7 @@ const OrderDetailPage = () => {
               className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
             >
               💬 Contact Support
-            </StartChatButton>
+            </StartSupportChatButton>
             
             {order.seller_id && (
               <StartChatButton

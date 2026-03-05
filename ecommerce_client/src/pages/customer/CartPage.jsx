@@ -1,6 +1,15 @@
+import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../hooks/redux'
-import { removeFromCart, updateQuantity, clearCart } from '../../store/slices/cartSlice'
+import {
+  removeFromCart,
+  updateQuantity,
+  clearCart,
+  fetchCart,
+  removeFromCartAsync,
+  updateQuantityAsync,
+  clearCartAsync
+} from '../../store/slices/cartSlice'
 import { removeGuestCartItem, updateGuestCartItem, clearGuestCart } from '../../store/slices/guestCartSlice'
 import { toast } from 'react-hot-toast'
 
@@ -10,42 +19,59 @@ const CartPage = () => {
   const user = useAppSelector((state) => state.auth.user)
   const registeredCart = useAppSelector((state) => state.cart)
   const guestCart = useAppSelector((state) => state.guestCart)
-  
-  // Use guest cart if not logged in, otherwise use registered cart
+
   const items = user ? registeredCart.items : guestCart.items
   const isGuest = !user
 
-  const handleRemove = (id) => {
+  // Sync cart from backend when user is logged in
+  useEffect(() => {
+    if (user && !registeredCart.synced) {
+      dispatch(fetchCart())
+    }
+  }, [user, registeredCart.synced, dispatch])
+
+  const handleRemove = async (id) => {
     if (isGuest) {
       dispatch(removeGuestCartItem(id))
     } else {
-      dispatch(removeFromCart(id))
+      try {
+        await dispatch(removeFromCartAsync(id)).unwrap()
+      } catch {
+        dispatch(removeFromCart(id))
+      }
     }
     toast.success('Item removed from cart')
   }
 
-  const handleQuantityChange = (id, quantity) => {
+  const handleQuantityChange = async (id, quantity) => {
     if (quantity > 0) {
       if (isGuest) {
         dispatch(updateGuestCartItem({ productId: id, quantity }))
       } else {
-        dispatch(updateQuantity({ id, quantity }))
+        try {
+          await dispatch(updateQuantityAsync({ productId: id, quantity })).unwrap()
+        } catch {
+          dispatch(updateQuantity({ id, quantity }))
+        }
       }
     }
   }
 
-  const handleClearCart = () => {
-    // Confirm before clearing
+  const handleClearCart = async () => {
     if (window.confirm('Are you sure you want to clear your entire cart? This cannot be undone.')) {
       if (isGuest) {
         dispatch(clearGuestCart())
       } else {
-        dispatch(clearCart())
+        try {
+          await dispatch(clearCartAsync()).unwrap()
+        } catch {
+          dispatch(clearCart())
+        }
       }
       toast.success('Cart cleared successfully!')
     }
   }
-  
+
   const handleCheckout = () => {
     if (isGuest) {
       navigate('/guest-checkout')
@@ -58,6 +84,17 @@ const CartPage = () => {
   const shipping = subtotal > 50 ? 0 : 5.99
   const tax = subtotal * 0.08
   const totalAmount = subtotal + shipping + tax
+
+  if (registeredCart.loading && user) {
+    return (
+      <div className="bg-[#EAEDED] min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading cart...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
@@ -85,7 +122,6 @@ const CartPage = () => {
         <h1 className="text-3xl font-normal text-[#0F1111] mb-5">Shopping Cart</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Cart Items */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg p-5">
               <div className="flex justify-between items-center mb-4 pb-4 border-b border-[#D5D9D9]">
@@ -94,7 +130,7 @@ const CartPage = () => {
                   onClick={handleClearCart}
                   className="px-4 py-2 border border-[#D5D9D9] rounded hover:bg-[#F7F8F8] text-[#0F1111] text-sm font-semibold transition-colors"
                 >
-                  🗑️ Clear Cart
+                  Clear Cart
                 </button>
               </div>
 
@@ -107,7 +143,7 @@ const CartPage = () => {
                       className="w-32 h-32 object-cover rounded border border-[#D5D9D9]"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect fill="%23f3f4f6" width="150" height="150"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="60"%3E📦%3C/text%3E%3C/svg%3E';
+                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect fill="%23f3f4f6" width="150" height="150"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="60"%3E%F0%9F%93%A6%3C/text%3E%3C/svg%3E';
                       }}
                     />
                   ) : (
@@ -115,7 +151,7 @@ const CartPage = () => {
                       📦
                     </div>
                   )}
-                  
+
                   <div className="flex-1">
                     <Link
                       to={`/product/${item.id}`}
@@ -123,9 +159,7 @@ const CartPage = () => {
                     >
                       {item.name}
                     </Link>
-                    
-                    <div className="text-[#007600] text-sm my-1 font-semibold">In Stock</div>
-                    
+
                     <div className="flex items-center gap-4 mt-3">
                       <div className="flex items-center gap-2">
                         <label className="text-sm font-semibold text-[#0F1111]">Qty:</label>
@@ -139,20 +173,16 @@ const CartPage = () => {
                           ))}
                         </select>
                       </div>
-                      
+
                       <button
                         onClick={() => handleRemove(item.id)}
                         className="text-[#007185] hover:text-[#C7511F] hover:underline text-sm"
                       >
                         Delete
                       </button>
-                      
-                      <button className="text-[#007185] hover:text-[#C7511F] hover:underline text-sm">
-                        Save for later
-                      </button>
                     </div>
                   </div>
-                  
+
                   <div className="text-right">
                     <div className="text-2xl font-bold text-[#B12704]">
                       ${(item.price * item.quantity).toFixed(2)}
@@ -166,11 +196,10 @@ const CartPage = () => {
             </div>
           </div>
 
-          {/* Order Summary */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg p-5 sticky top-5">
               <h3 className="text-lg font-bold mb-4">Order Summary</h3>
-              
+
               <div className="space-y-3 mb-4 pb-4 border-b">
                 <div className="flex justify-between">
                   <span>Subtotal ({items.length} items):</span>
@@ -183,23 +212,23 @@ const CartPage = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Estimated Tax:</span>
+                  <span>Estimated Tax (8%):</span>
                   <span className="font-semibold">${tax.toFixed(2)}</span>
                 </div>
               </div>
-              
+
               <div className="flex justify-between text-xl font-bold mb-4 pb-4 border-b">
                 <span>Order Total:</span>
                 <span className="text-[#B12704]">${totalAmount.toFixed(2)}</span>
               </div>
-              
+
               <button
                 onClick={handleCheckout}
                 className="block w-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] rounded-full py-3 font-semibold text-center mb-2"
               >
                 {isGuest ? 'Checkout as Guest' : 'Proceed to Checkout'}
               </button>
-              
+
               {isGuest && (
                 <div className="text-sm text-center text-[#565959] mt-2 mb-3">
                   <Link to="/login" className="text-[#007185] hover:text-[#C7511F] hover:underline">
@@ -208,13 +237,13 @@ const CartPage = () => {
                   {' '}for faster checkout
                 </div>
               )}
-              
+
               {shipping > 0 && (
                 <div className="text-sm text-center text-[#565959] mt-3">
                   Add ${(50 - subtotal).toFixed(2)} more for FREE shipping
                 </div>
               )}
-              
+
               <div className="mt-4 pt-4 border-t border-[#D5D9D9] text-sm text-[#565959]">
                 <div className="flex items-start gap-2 mb-2">
                   <span>🔒</span>
@@ -229,7 +258,6 @@ const CartPage = () => {
           </div>
         </div>
 
-        {/* Continue Shopping */}
         <div className="mt-5">
           <Link
             to="/"

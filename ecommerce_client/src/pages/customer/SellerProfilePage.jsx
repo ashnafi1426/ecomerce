@@ -21,7 +21,7 @@ const SellerProfilePage = () => {
   const fetchSellerProfile = async () => {
     try {
       const response = await api.get(`/sellers/${sellerId}`)
-      setSeller(response.data || response)
+      setSeller(response)
     } catch (error) {
       console.error('Error fetching seller:', error)
       toast.error('Failed to load seller profile')
@@ -33,7 +33,7 @@ const SellerProfilePage = () => {
   const fetchSellerProducts = async () => {
     try {
       const response = await api.get(`/products?seller_id=${sellerId}`)
-      setProducts(response.data?.products || response.data || [])
+      setProducts(response?.products || response || [])
     } catch (error) {
       console.error('Error fetching products:', error)
     }

@@ -324,7 +324,7 @@ const CheckoutForm = ({ cartItems, shippingAddress, onPaymentSuccess, onPaymentE
         </div>
       </form>
 
-      <style jsx>{`
+      <style>{`
         .stripe-checkout-form {
           max-width: 500px;
           margin: 0 auto;

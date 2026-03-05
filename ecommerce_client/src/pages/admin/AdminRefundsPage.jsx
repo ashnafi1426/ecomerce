@@ -1,266 +1,562 @@
-import { useState, useEffect } from 'react';
-import { adminAPI } from '../../services/api.service';
-import { toast } from 'react-toastify';
+import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
+import { adminAPI } from '../../services/api.service'
+import { toast } from 'react-hot-toast'
 
+// ── Status metadata ──────────────────────────────────────────────────────────
+const STATUS_META = {
+  pending:         { label: 'Pending Review',   color: '#92400E', bg: '#FEF3C7', icon: '⏳' },
+  approved:        { label: 'Approved',          color: '#065F46', bg: '#D1FAE5', icon: '✅' },
+  return_shipped:  { label: 'Return Shipped',    color: '#1E40AF', bg: '#DBEAFE', icon: '📦' },
+  return_received: { label: 'Item Received',     color: '#4C1D95', bg: '#EDE9FE', icon: '🏭' },
+  inspecting:      { label: 'Under Inspection',  color: '#9A3412', bg: '#FFEDD5', icon: '🔍' },
+  completed:       { label: 'Refund Issued',     color: '#065F46', bg: '#ECFDF5', icon: '💰' },
+  rejected:        { label: 'Rejected',          color: '#991B1B', bg: '#FEE2E2', icon: '❌' },
+  cancelled:       { label: 'Cancelled',         color: '#374151', bg: '#F3F4F6', icon: '🚫' },
+}
+
+const ALL_STATUSES = [
+  { value: 'all',            label: 'All Statuses' },
+  { value: 'pending',        label: 'Pending Review' },
+  { value: 'approved',       label: 'Approved' },
+  { value: 'return_shipped', label: 'Return Shipped' },
+  { value: 'return_received',label: 'Item Received' },
+  { value: 'inspecting',     label: 'Under Inspection' },
+  { value: 'completed',      label: 'Refund Issued' },
+  { value: 'rejected',       label: 'Rejected' },
+  { value: 'cancelled',      label: 'Cancelled' },
+]
+
+const fmtDate = (ts) => ts
+  ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  : '—'
+
+const fmtMoney = (n) => n != null ? `$${Number(n).toFixed(2)}` : '—'
+
+// ── Modal component ──────────────────────────────────────────────────────────
+const Modal = ({ title, children, onClose }) => (
+  <div style={{
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 1000, padding: 16
+  }}>
+    <div style={{
+      background: 'white', borderRadius: 10, padding: 28,
+      width: 460, maxWidth: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{title}</div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#9CA3AF', lineHeight: 1 }}>×</button>
+      </div>
+      {children}
+    </div>
+  </div>
+)
+
+// ── Main component ────────────────────────────────────────────────────────────
 const AdminRefundsPage = () => {
-    const [refunds, setRefunds] = useState([]);
-    const [stats, setStats] = useState({
-        totalRefunded: 0,
-        pending: 0,
-        approved: 0,
-        rejected: 0
-    });
-    const [filters, setFilters] = useState({
-        search: '',
-        status: 'all',
-        dateRange: '30days'
-    });
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+  const [returns, setReturns]   = useState([])
+  const [stats, setStats]       = useState(null)
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [loading, setLoading]   = useState(true)
+  const [actionLoading, setActionLoading] = useState(null) // returnId being actioned
 
-    useEffect(() => {
-        fetchRefunds();
-    }, [filters]);
+  // Modals
+  const [approveModal, setApproveModal]   = useState(null) // { id, orderAmount }
+  const [rejectModal, setRejectModal]     = useState(null) // { id }
+  const [completeModal, setCompleteModal] = useState(null) // { id, refundAmount }
+  const [expandedId, setExpandedId]       = useState(null)
 
-    const fetchRefunds = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const response = await adminAPI.getRefunds(filters);
-            const refundsData = response.refunds || response.data || [];
-            setRefunds(refundsData);
-            
-            // Calculate stats
-            if (refundsData.length > 0) {
-                const totalRefunded = refundsData
-                    .filter(r => r.status === 'approved')
-                    .reduce((sum, r) => sum + (r.amount || 0), 0);
-                
-                setStats({
-                    totalRefunded,
-                    pending: refundsData.filter(r => r.status === 'pending').length,
-                    approved: refundsData.filter(r => r.status === 'approved').length,
-                    rejected: refundsData.filter(r => r.status === 'rejected').length
-                });
-            }
-        } catch (error) {
-            console.error('Error fetching refunds:', error);
-            const errorMessage = error.message || 'Failed to load refunds';
-            setError(errorMessage);
-            toast.error(errorMessage);
-        } finally {
-            setLoading(false);
-        }
-    };
+  // Form fields
+  const [refundAmount, setRefundAmount]         = useState('')
+  const [rejectionReason, setRejectionReason]   = useState('')
+  const [txId, setTxId]                         = useState('')
 
-    const getStatusBadge = (status) => {
-        const statusLower = status?.toLowerCase();
-        if (statusLower === 'approved') return 'badge-approved';
-        if (statusLower === 'pending') return 'badge-pending';
-        if (statusLower === 'rejected') return 'badge-rejected';
-        if (statusLower === 'processing') return 'badge-processing';
-        return 'badge-pending';
-    };
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = filterStatus !== 'all' ? { status: filterStatus } : {}
+      const [returnsRes, statsRes] = await Promise.allSettled([
+        adminAPI.getReturns(params),
+        adminAPI.getReturnStats()
+      ])
 
-    const handleFilterChange = (key, value) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
-    };
+      if (returnsRes.status === 'fulfilled') {
+        const r = returnsRes.value
+        let data = []
+        if (Array.isArray(r))              data = r
+        else if (r?.returns)               data = r.returns
+        else if (Array.isArray(r?.data))   data = r.data
+        setReturns(data)
+      } else {
+        toast.error('Failed to load returns')
+        setReturns([])
+      }
 
-    const handleApprove = async (refundId) => {
-        try {
-            await adminAPI.approveRefund(refundId);
-            toast.success('Refund approved successfully');
-            fetchRefunds();
-        } catch (error) {
-            console.error('Error approving refund:', error);
-            toast.error(error.message || 'Failed to approve refund');
-        }
-    };
-
-    const handleReject = async (refundId) => {
-        try {
-            await adminAPI.rejectRefund(refundId);
-            toast.success('Refund rejected');
-            fetchRefunds();
-        } catch (error) {
-            console.error('Error rejecting refund:', error);
-            toast.error(error.message || 'Failed to reject refund');
-        }
-    };
-
-    const formatTimestamp = (timestamp) => {
-        const date = new Date(timestamp);
-        return date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-    };
-
-    if (loading) {
-        return (
-            <div style={{textAlign: 'center', padding: '80px 20px'}}>
-                <div style={{fontSize: '3em', marginBottom: '20px'}}>⏳</div>
-                <div style={{fontSize: '1.2em', color: '#565959'}}>Loading refunds...</div>
-            </div>
-        );
+      if (statsRes.status === 'fulfilled') {
+        setStats(statsRes.value)
+      } else {
+        // Derive stats from loaded returns as fallback
+        setStats(null)
+      }
+    } finally {
+      setLoading(false)
     }
+  }, [filterStatus])
 
-    if (error && refunds.length === 0) {
-        return (
-            <div style={{textAlign: 'center', padding: '80px 20px'}}>
-                <div style={{fontSize: '3em', marginBottom: '20px'}}>❌</div>
-                <div style={{fontSize: '1.2em', color: '#C7511F', marginBottom: '20px'}}>{error}</div>
-                <button 
-                    onClick={fetchRefunds} 
-                    style={{background: '#FF9900', color: 'white', border: 'none', padding: '12px 30px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'}}
-                >
-                    Retry
-                </button>
-            </div>
-        );
+  useEffect(() => { fetchAll() }, [fetchAll])
+
+  // Derived stats fallback if API endpoint missing
+  const derivedStats = stats || returns.reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1
+    if (r.status === 'completed' && r.refund_amount) acc.total_refund_amount = (acc.total_refund_amount || 0) + Number(r.refund_amount)
+    return acc
+  }, {})
+
+  // ── Action handlers ────────────────────────────────────────────────────────
+  const runAction = async (returnId, fn, successMsg) => {
+    setActionLoading(returnId)
+    try {
+      await fn()
+      toast.success(successMsg)
+      await fetchAll()
+    } catch (err) {
+      toast.error(err.message || 'Action failed')
+    } finally {
+      setActionLoading(null)
     }
+  }
 
+  const handleApprove = async () => {
+    const amount = parseFloat(refundAmount)
+    if (!amount || amount <= 0) { toast.error('Enter a valid refund amount > 0'); return }
+    await runAction(approveModal.id,
+      () => adminAPI.approveReturn(approveModal.id, amount),
+      'Return approved — customer will be notified'
+    )
+    setApproveModal(null); setRefundAmount('')
+  }
+
+  const handleReject = async () => {
+    await runAction(rejectModal.id,
+      () => adminAPI.rejectReturn(rejectModal.id, rejectionReason.trim() || null),
+      'Return request rejected'
+    )
+    setRejectModal(null); setRejectionReason('')
+  }
+
+  const handleMarkReceived = (id) =>
+    runAction(id, () => adminAPI.markReturnReceived(id), 'Marked as received at warehouse')
+
+  const handleMarkInspecting = (id) =>
+    runAction(id, () => adminAPI.markReturnInspecting(id), 'Inspection started')
+
+  const handleComplete = async () => {
+    await runAction(completeModal.id,
+      () => adminAPI.completeReturn(completeModal.id, txId.trim() || null),
+      'Refund issued — return completed!'
+    )
+    setCompleteModal(null); setTxId('')
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const getCustomerName = (r) =>
+    r.customer?.display_name || r.customer?.email ||
+    (r.customer_id ? '#' + r.customer_id.substring(0, 8) : 'Unknown')
+
+  const busy = (id) => actionLoading === id
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  if (loading && returns.length === 0) {
     return (
-        <div className="admin-refunds-page">
-            <style>{`
-                h1 { font-size: 2em; margin-bottom: 10px; }
-                .subtitle { color: #565959; margin-bottom: 30px; }
-                
-                .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-                .stat-card { background: #FFFFFF; padding: 20px; border-radius: 8px; border: 1px solid #D5D9D9; }
-                .stat-value { font-size: 2.5em; font-weight: bold; color: #FF9900; }
-                .stat-label { font-size: 0.9em; color: #565959; margin-top: 8px; }
-                
-                .section { background: #FFFFFF; padding: 25px; border-radius: 8px; border: 1px solid #D5D9D9; margin-bottom: 20px; }
-                .section-title { font-size: 1.4em; font-weight: 600; margin-bottom: 20px; }
-                
-                .filter-bar { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
-                .filter-bar input, .filter-bar select { padding: 8px 12px; border: 1px solid #D5D9D9; border-radius: 4px; }
-                .filter-bar input { flex: 1; min-width: 250px; }
-                .btn-primary { background: #FF9900; color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-                
-                table { width: 100%; border-collapse: collapse; }
-                th { background: #F7F8F8; padding: 12px; text-align: left; font-weight: 600; }
-                td { padding: 12px; border-bottom: 1px solid #D5D9D9; }
-                
-                .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; }
-                .badge-approved { background: #E6F4F1; color: #067D62; }
-                .badge-pending { background: #FFF4E5; color: #F08804; }
-                .badge-rejected { background: #FFE5E5; color: #C7511F; }
-                .badge-processing { background: #E7F3FF; color: #146EB4; }
-                
-                .btn-sm { padding: 6px 12px; border: 1px solid #D5D9D9; background: #FFFFFF; border-radius: 4px; cursor: pointer; text-decoration: none; color: #0F1111; margin-right: 5px; font-size: 0.85em; }
-                .btn-sm:hover { background: #F7F8F8; }
-                .btn-approve { padding: 6px 14px; border: 1px solid #067D62; background: #E6F4F1; color: #067D62; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: 600; margin-right: 5px; }
-                .btn-approve:hover { background: #067D62; color: #FFFFFF; }
-                .btn-reject { padding: 6px 14px; border: 1px solid #C7511F; background: #FFE5E5; color: #C7511F; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: 600; }
-                .btn-reject:hover { background: #C7511F; color: #FFFFFF; }
-            `}</style>
+      <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+        <div style={{ color: '#565959', fontSize: 16 }}>Loading return requests...</div>
+      </div>
+    )
+  }
 
-            <h1>Refund Management</h1>
-            <p className="subtitle">Process and manage customer refund requests</p>
+  return (
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px' }}>
 
-            <div className="stats-grid">
-                <div className="stat-card">
-                    <div className="stat-value">${(stats.totalRefunded / 1000).toFixed(0)}K</div>
-                    <div className="stat-label">Total Refunded</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-value">{stats.pending}</div>
-                    <div className="stat-label">Pending</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-value">{stats.approved}</div>
-                    <div className="stat-label">Approved</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-value">{stats.rejected}</div>
-                    <div className="stat-label">Rejected</div>
-                </div>
+      {/* ── Approve Modal ── */}
+      {approveModal && (
+        <Modal title="Approve Return Request" onClose={() => { setApproveModal(null); setRefundAmount('') }}>
+          <p style={{ color: '#565959', fontSize: 14, marginBottom: 16 }}>
+            Set the refund amount the customer will receive. After approval, the customer must ship the item back within 7 days.
+          </p>
+          {approveModal.orderAmount && (
+            <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 6, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
+              Order total: <strong>{fmtMoney(approveModal.orderAmount)}</strong>
             </div>
+          )}
+          <label style={{ display: 'block', fontWeight: 700, marginBottom: 6, fontSize: 14 }}>
+            Refund Amount ($) <span style={{ color: '#C7511F' }}>*</span>
+          </label>
+          <input
+            type="number" min="0.01" step="0.01"
+            value={refundAmount}
+            onChange={(e) => setRefundAmount(e.target.value)}
+            placeholder="e.g. 29.99"
+            autoFocus
+            style={{ width: '100%', border: '1px solid #D5D9D9', borderRadius: 4, padding: '9px 12px', fontSize: 14, boxSizing: 'border-box', marginBottom: 20 }}
+          />
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => { setApproveModal(null); setRefundAmount('') }}
+              style={{ background: '#F3F4F6', border: '1px solid #D5D9D9', borderRadius: 4, padding: '9px 20px', cursor: 'pointer', fontWeight: 600 }}>
+              Cancel
+            </button>
+            <button onClick={handleApprove} disabled={busy(approveModal.id)}
+              style={{ background: '#10B981', color: 'white', border: 'none', borderRadius: 4, padding: '9px 22px', cursor: 'pointer', fontWeight: 700, opacity: busy(approveModal.id) ? 0.6 : 1 }}>
+              {busy(approveModal.id) ? 'Approving…' : 'Confirm Approval'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
-            <div className="section">
-                <h2 className="section-title">Refund Requests</h2>
+      {/* ── Reject Modal ── */}
+      {rejectModal && (
+        <Modal title="Reject Return Request" onClose={() => { setRejectModal(null); setRejectionReason('') }}>
+          <p style={{ color: '#565959', fontSize: 14, marginBottom: 16 }}>
+            The customer will be notified. Provide a reason to help them understand the decision.
+          </p>
+          <label style={{ display: 'block', fontWeight: 700, marginBottom: 6, fontSize: 14 }}>
+            Rejection Reason <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span>
+          </label>
+          <textarea
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="e.g. Item not eligible for return (beyond 30 days)..."
+            rows={3} autoFocus
+            style={{ width: '100%', border: '1px solid #D5D9D9', borderRadius: 4, padding: '9px 12px', fontSize: 14, resize: 'vertical', boxSizing: 'border-box', marginBottom: 20 }}
+          />
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => { setRejectModal(null); setRejectionReason('') }}
+              style={{ background: '#F3F4F6', border: '1px solid #D5D9D9', borderRadius: 4, padding: '9px 20px', cursor: 'pointer', fontWeight: 600 }}>
+              Cancel
+            </button>
+            <button onClick={handleReject} disabled={busy(rejectModal.id)}
+              style={{ background: '#EF4444', color: 'white', border: 'none', borderRadius: 4, padding: '9px 22px', cursor: 'pointer', fontWeight: 700, opacity: busy(rejectModal.id) ? 0.6 : 1 }}>
+              {busy(rejectModal.id) ? 'Rejecting…' : 'Confirm Rejection'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
-                <div className="filter-bar">
-                    <input
-                        type="text"
-                        placeholder="Search refunds..."
-                        value={filters.search}
-                        onChange={(e) => handleFilterChange('search', e.target.value)}
-                    />
-                    <select value={filters.status} onChange={(e) => handleFilterChange('status', e.target.value)}>
-                        <option value="all">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="processing">Processing</option>
-                    </select>
-                    <select value={filters.dateRange} onChange={(e) => handleFilterChange('dateRange', e.target.value)}>
-                        <option value="7days">Last 7 Days</option>
-                        <option value="30days">Last 30 Days</option>
-                        <option value="90days">Last 90 Days</option>
-                    </select>
-                    <button className="btn-primary">Export</button>
-                </div>
+      {/* ── Complete / Issue Refund Modal ── */}
+      {completeModal && (
+        <Modal title="Issue Refund & Complete Return" onClose={() => { setCompleteModal(null); setTxId('') }}>
+          <div style={{ background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 6, padding: '10px 14px', fontSize: 14, color: '#065F46', marginBottom: 16 }}>
+            Refund amount approved: <strong>{fmtMoney(completeModal.refundAmount)}</strong>
+          </div>
+          <p style={{ color: '#565959', fontSize: 14, marginBottom: 16 }}>
+            Confirm that the refund has been processed. Optionally enter a Stripe transaction ID for records.
+          </p>
+          <label style={{ display: 'block', fontWeight: 700, marginBottom: 6, fontSize: 14 }}>
+            Stripe Transaction ID <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={txId}
+            onChange={(e) => setTxId(e.target.value)}
+            placeholder="e.g. ch_3OaBC..."
+            autoFocus
+            style={{ width: '100%', border: '1px solid #D5D9D9', borderRadius: 4, padding: '9px 12px', fontSize: 14, boxSizing: 'border-box', marginBottom: 20, fontFamily: 'monospace' }}
+          />
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => { setCompleteModal(null); setTxId('') }}
+              style={{ background: '#F3F4F6', border: '1px solid #D5D9D9', borderRadius: 4, padding: '9px 20px', cursor: 'pointer', fontWeight: 600 }}>
+              Cancel
+            </button>
+            <button onClick={handleComplete} disabled={busy(completeModal.id)}
+              style={{ background: '#059669', color: 'white', border: 'none', borderRadius: 4, padding: '9px 22px', cursor: 'pointer', fontWeight: 700, opacity: busy(completeModal.id) ? 0.6 : 1 }}>
+              {busy(completeModal.id) ? 'Processing…' : 'Issue Refund'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Refund ID</th>
-                            <th>Order ID</th>
-                            <th>Customer</th>
-                            <th>Amount</th>
-                            <th>Reason</th>
-                            <th>Status</th>
-                            <th>Requested</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {refunds.length > 0 ? refunds.map((refund) => (
-                            <tr key={refund.id}>
-                                <td>{refund.id}</td>
-                                <td>{refund.orderId || refund.order_id}</td>
-                                <td>{refund.customer || refund.customer_name || 'N/A'}</td>
-                                <td style={{ fontWeight: 600 }}>${(refund.amount || 0).toFixed(2)}</td>
-                                <td>{refund.reason || 'No reason provided'}</td>
-                                <td>
-                                    <span className={`badge ${getStatusBadge(refund.status)}`}>
-                                        {(refund.status || 'pending').charAt(0).toUpperCase() + (refund.status || 'pending').slice(1)}
-                                    </span>
-                                </td>
-                                <td>{formatTimestamp(refund.requestedAt || refund.created_at)}</td>
-                                <td>
-                                    <button className="btn-sm">View</button>
-                                    {refund.status === 'pending' && (
-                                        <>
-                                            <button className="btn-approve" onClick={() => handleApprove(refund.id)}>
-                                                ✓ Approve
-                                            </button>
-                                            <button className="btn-reject" onClick={() => handleReject(refund.id)}>
-                                                ✗ Reject
-                                            </button>
-                                        </>
-                                    )}
-                                </td>
-                            </tr>
-                        )) : (
-                            <tr>
-                                <td colSpan="8" style={{textAlign: 'center', padding: '40px', color: '#565959'}}>
-                                    <div style={{fontSize: '2em', marginBottom: '10px'}}>💰</div>
-                                    <div>No refunds found</div>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+      {/* ── Page Header ── */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 6px' }}>Returns &amp; Refunds</h1>
+        <p style={{ color: '#565959', margin: 0 }}>Review and process customer return requests — Amazon-style workflow</p>
+      </div>
+
+      {/* ── Stats Bar ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 24 }}>
+        {[
+          { label: 'Total Returns',  value: derivedStats.total_returns ?? returns.length,         color: '#1D4ED8' },
+          { label: 'Pending',        value: derivedStats.pending  ?? 0,                           color: '#D97706' },
+          { label: 'Approved',       value: derivedStats.approved ?? 0,                           color: '#059669' },
+          { label: 'Received',       value: derivedStats.return_received ?? 0,                    color: '#7C3AED' },
+          { label: 'Inspecting',     value: derivedStats.inspecting ?? 0,                         color: '#EA580C' },
+          { label: 'Completed',      value: derivedStats.completed ?? 0,                          color: '#16A34A' },
+          { label: 'Rejected',       value: derivedStats.rejected ?? 0,                           color: '#DC2626' },
+          { label: 'Refunded',       value: fmtMoney(derivedStats.total_refund_amount ?? 0),      color: '#059669', wide: true },
+        ].map(s => (
+          <div key={s.label} style={{ background: 'white', border: '1px solid #D5D9D9', borderRadius: 8, padding: '14px 16px' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: '#565959', marginTop: 4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filter + Refresh ── */}
+      <div style={{ background: 'white', border: '1px solid #D5D9D9', borderRadius: 8, padding: '16px 20px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ fontWeight: 600, fontSize: 14 }}>Filter by status:</label>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          style={{ border: '1px solid #D5D9D9', borderRadius: 4, padding: '7px 12px', fontSize: 14 }}
+        >
+          {ALL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        <button
+          onClick={fetchAll}
+          disabled={loading}
+          style={{ marginLeft: 'auto', background: '#FF9900', color: 'white', border: 'none', borderRadius: 4, padding: '8px 18px', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: loading ? 0.6 : 1 }}
+        >
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {/* ── Returns List ── */}
+      {returns.length === 0 ? (
+        <div style={{ background: 'white', border: '1px solid #D5D9D9', borderRadius: 8, padding: '60px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>No return requests found</div>
+          <div style={{ color: '#565959', marginTop: 6 }}>
+            {filterStatus !== 'all' ? `No returns with status "${filterStatus}"` : 'No returns have been submitted yet'}
+          </div>
         </div>
-    );
-};
+      ) : (
+        returns.map(r => {
+          const meta = STATUS_META[r.status] || STATUS_META.pending
+          const isExpanded = expandedId === r.id
+          const isBusy = busy(r.id)
 
-export default AdminRefundsPage;
+          return (
+            <div key={r.id} style={{ background: 'white', border: '1px solid #D5D9D9', borderRadius: 8, marginBottom: 12, overflow: 'hidden' }}>
+              {/* ── Card Header ── */}
+              <div style={{
+                background: '#F7F8F8', borderBottom: '1px solid #D5D9D9',
+                padding: '12px 20px', display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', flexWrap: 'wrap', gap: 8
+              }}>
+                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {/* Return ID */}
+                  <div>
+                    <div style={{ fontSize: 11, color: '#565959', fontWeight: 600, textTransform: 'uppercase' }}>Return ID</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace' }}>
+                      #{r.id?.substring(0, 8).toUpperCase()}
+                    </div>
+                  </div>
+                  {/* Order */}
+                  <div>
+                    <div style={{ fontSize: 11, color: '#565959', fontWeight: 600, textTransform: 'uppercase' }}>Order</div>
+                    <Link to={`/admin/orders/${r.order_id}`} style={{ fontSize: 13, color: '#007185', fontWeight: 600, textDecoration: 'none' }}>
+                      #{r.order_id?.substring(0, 8).toUpperCase()}
+                    </Link>
+                  </div>
+                  {/* Customer */}
+                  <div>
+                    <div style={{ fontSize: 11, color: '#565959', fontWeight: 600, textTransform: 'uppercase' }}>Customer</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{getCustomerName(r)}</div>
+                    {r.customer?.email && r.customer?.display_name && (
+                      <div style={{ fontSize: 11, color: '#6B7280' }}>{r.customer.email}</div>
+                    )}
+                  </div>
+                  {/* Requested */}
+                  <div>
+                    <div style={{ fontSize: 11, color: '#565959', fontWeight: 600, textTransform: 'uppercase' }}>Requested</div>
+                    <div style={{ fontSize: 13 }}>{fmtDate(r.created_at)}</div>
+                  </div>
+                  {/* Refund */}
+                  {r.refund_amount != null && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#565959', fontWeight: 600, textTransform: 'uppercase' }}>Refund</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>{fmtMoney(r.refund_amount)}</div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {/* Status badge */}
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '5px 12px', borderRadius: 20,
+                    background: meta.bg, color: meta.color,
+                    fontSize: 12, fontWeight: 700
+                  }}>
+                    <span>{meta.icon}</span>
+                    <span>{meta.label}</span>
+                  </div>
+                  {/* Expand toggle */}
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                    style={{ background: 'none', border: '1px solid #D5D9D9', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12, color: '#565959' }}
+                  >
+                    {isExpanded ? '▲ Less' : '▼ More'}
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Card Body ── */}
+              <div style={{ padding: '14px 20px' }}>
+                {/* Reason */}
+                <div style={{ marginBottom: 12 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#565959', textTransform: 'uppercase' }}>Reason: </span>
+                  <span style={{ fontSize: 14 }}>{r.reason || 'No reason provided'}</span>
+                </div>
+
+                {/* Rejection reason */}
+                {r.status === 'rejected' && r.rejection_reason && (
+                  <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#991B1B', marginBottom: 12 }}>
+                    <strong>Rejection Reason:</strong> {r.rejection_reason}
+                  </div>
+                )}
+
+                {/* Inspection notes */}
+                {r.inspection_notes && (
+                  <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#9A3412', marginBottom: 12 }}>
+                    <strong>Inspection Notes:</strong> {r.inspection_notes}
+                    {r.inspection_passed === false && <span style={{ marginLeft: 8, fontWeight: 700 }}> — FAILED</span>}
+                  </div>
+                )}
+
+                {/* Tracking info */}
+                {r.return_tracking_number && (
+                  <div style={{ fontSize: 13, color: '#374151', marginBottom: 12 }}>
+                    <span style={{ fontWeight: 600 }}>Return Tracking: </span>
+                    <span style={{ fontFamily: 'monospace', color: '#C2410C' }}>{r.return_tracking_number}</span>
+                    {r.return_carrier && <span style={{ color: '#6B7280' }}> via {r.return_carrier}</span>}
+                  </div>
+                )}
+
+                {/* Expanded timestamps */}
+                {isExpanded && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: '#6B7280', background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
+                    <span>Submitted: {fmtDate(r.created_at)}</span>
+                    {r.approved_at && <span>Approved: {fmtDate(r.approved_at)}</span>}
+                    {r.return_received_at && <span>Received: {fmtDate(r.return_received_at)}</span>}
+                    {r.inspected_at && <span>Inspected: {fmtDate(r.inspected_at)}</span>}
+                    {r.completed_at && <span>Completed: {fmtDate(r.completed_at)}</span>}
+                    {r.refund_transaction_id && (
+                      <span>Txn ID: <span style={{ fontFamily: 'monospace', color: '#047857' }}>{r.refund_transaction_id}</span></span>
+                    )}
+                    {r.order?.amount && <span>Order Total: {fmtMoney(r.order.amount)}</span>}
+                  </div>
+                )}
+
+                {/* ── Action Buttons per status ── */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+
+                  {/* PENDING → Approve + Reject */}
+                  {r.status === 'pending' && (
+                    <>
+                      <button
+                        disabled={isBusy}
+                        onClick={() => { setApproveModal({ id: r.id, orderAmount: r.order?.amount }); setRefundAmount(r.refund_amount ? String(r.refund_amount) : '') }}
+                        style={{ background: '#10B981', color: 'white', border: 'none', borderRadius: 4, padding: '7px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: isBusy ? 0.6 : 1 }}
+                      >
+                        ✓ Approve Return
+                      </button>
+                      <button
+                        disabled={isBusy}
+                        onClick={() => setRejectModal({ id: r.id })}
+                        style={{ background: '#EF4444', color: 'white', border: 'none', borderRadius: 4, padding: '7px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: isBusy ? 0.6 : 1 }}
+                      >
+                        ✗ Reject
+                      </button>
+                    </>
+                  )}
+
+                  {/* APPROVED → Mark Return Received */}
+                  {r.status === 'approved' && (
+                    <button
+                      disabled={isBusy}
+                      onClick={() => handleMarkReceived(r.id)}
+                      style={{ background: '#8B5CF6', color: 'white', border: 'none', borderRadius: 4, padding: '7px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: isBusy ? 0.6 : 1 }}
+                    >
+                      {isBusy ? 'Updating…' : '🏭 Mark as Received'}
+                    </button>
+                  )}
+
+                  {/* RETURN_RECEIVED → Start Inspection */}
+                  {r.status === 'return_received' && (
+                    <button
+                      disabled={isBusy}
+                      onClick={() => handleMarkInspecting(r.id)}
+                      style={{ background: '#F97316', color: 'white', border: 'none', borderRadius: 4, padding: '7px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: isBusy ? 0.6 : 1 }}
+                    >
+                      {isBusy ? 'Updating…' : '🔍 Start Inspection'}
+                    </button>
+                  )}
+
+                  {/* INSPECTING → Issue Refund / Complete */}
+                  {r.status === 'inspecting' && (
+                    <>
+                      <button
+                        disabled={isBusy}
+                        onClick={() => setCompleteModal({ id: r.id, refundAmount: r.refund_amount })}
+                        style={{ background: '#059669', color: 'white', border: 'none', borderRadius: 4, padding: '7px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: isBusy ? 0.6 : 1 }}
+                      >
+                        💰 Issue Refund &amp; Complete
+                      </button>
+                      <button
+                        disabled={isBusy}
+                        onClick={() => setRejectModal({ id: r.id })}
+                        style={{ background: 'none', border: '1px solid #EF4444', color: '#EF4444', borderRadius: 4, padding: '7px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: isBusy ? 0.6 : 1 }}
+                      >
+                        Failed Inspection
+                      </button>
+                    </>
+                  )}
+
+                  {/* COMPLETED — show refund transaction */}
+                  {r.status === 'completed' && (
+                    <div style={{ fontSize: 13, color: '#065F46', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>💰 Refund of <strong>{fmtMoney(r.refund_amount)}</strong> issued</span>
+                      {r.refund_processed_at && <span style={{ color: '#6B7280' }}>on {fmtDate(r.refund_processed_at)}</span>}
+                    </div>
+                  )}
+
+                  {/* REJECTED — no further actions */}
+                  {r.status === 'rejected' && (
+                    <div style={{ fontSize: 13, color: '#991B1B' }}>
+                      ❌ Return request was rejected
+                    </div>
+                  )}
+
+                  {/* CANCELLED — no further actions */}
+                  {r.status === 'cancelled' && (
+                    <div style={{ fontSize: 13, color: '#6B7280' }}>
+                      🚫 Cancelled by customer
+                    </div>
+                  )}
+
+                  {/* RETURN_SHIPPED — waiting for arrival */}
+                  {r.status === 'return_shipped' && (
+                    <div style={{ fontSize: 13, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>📦 Item shipped back — awaiting warehouse arrival</span>
+                      <button
+                        disabled={isBusy}
+                        onClick={() => handleMarkReceived(r.id)}
+                        style={{ background: '#8B5CF6', color: 'white', border: 'none', borderRadius: 4, padding: '5px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer', opacity: isBusy ? 0.6 : 1 }}
+                      >
+                        {isBusy ? '…' : 'Mark Received'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })
+      )}
+    </div>
+  )
+}
+
+export default AdminRefundsPage

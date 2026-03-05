@@ -3,6 +3,7 @@ import { useAppSelector, useAppDispatch } from '../hooks/redux'
 import { logout } from '../store/slices/authSlice'
 import { useState, useRef, useEffect } from 'react'
 import NotificationCenter from './NotificationCenter'
+import { customerAPI } from '../services/api.service'
 
 const Header = () => {
   const navigate = useNavigate()
@@ -75,8 +76,8 @@ const Header = () => {
     return emojiMap[categoryName] || '📦';
   };
 
-  // Categories for dropdown
-  const categories = [
+  // Categories — loaded from API, fallback to static list
+  const FALLBACK_CATEGORIES = [
     { name: 'Electronics', slug: 'electronics', icon: '📱' },
     { name: 'Fashion', slug: 'fashion', icon: '👕' },
     { name: 'Home & Kitchen', slug: 'home-kitchen', icon: '🏠' },
@@ -86,6 +87,22 @@ const Header = () => {
     { name: 'Toys & Games', slug: 'toys-games', icon: '🎮' },
     { name: 'Automotive', slug: 'automotive', icon: '🚗' }
   ]
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES)
+
+  useEffect(() => {
+    customerAPI.getCategories()
+      .then((res) => {
+        const list = Array.isArray(res) ? res : res?.data || []
+        if (list.length > 0) {
+          setCategories(list.map(cat => ({
+            name: cat.name,
+            slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, ''),
+            icon: getCategoryEmoji(cat.name)
+          })))
+        }
+      })
+      .catch(() => { /* keep fallback */ })
+  }, [])
 
   return (
     <header className="bg-gray-800 text-white relative z-[1000] w-full">
@@ -439,31 +456,31 @@ const Header = () => {
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
-        /* Touch-friendly buttons on mobile */
+        /* Touch-friendly buttons on mobile - only for header interactive elements */
         @media (max-width: 768px) {
-          button, a { 
-            min-height: 44px !important; 
+          header .mobile-menu-btn,
+          header .mobile-icon,
+          header .mobile-account-with-name,
+          header .mobile-search-btn {
+            min-height: 44px !important;
             min-width: 44px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
           }
         }
         
         /* Desktop interactions */
         @media (min-width: 769px) {
-          button, a { 
-            cursor: pointer !important; 
+          header button, header a {
+            cursor: pointer !important;
             pointer-events: auto !important;
-            transition: all 0.2s ease !important;
           }
-          
-          button:hover, a:hover {
+
+          header nav button:hover,
+          header nav a:hover {
             border-color: white !important;
           }
-          
-          .desktop-only { 
-            display: flex !important; 
+
+          .desktop-only {
+            display: flex !important;
             pointer-events: auto !important;
           }
         }
@@ -479,9 +496,11 @@ const Header = () => {
           z-index: 1001 !important;
         }
         
-        /* Smooth transitions */
-        * {
-          transition: all 0.2s ease;
+        /* Smooth transitions - scoped to interactive elements only */
+        header button,
+        header a,
+        header select {
+          transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
         
         /* Hide scrollbar on mobile nav */
@@ -680,7 +699,7 @@ const Header = () => {
 
         {/* 3. Deliver To - Desktop Only */}
         <div className="desktop-only hidden lg:flex items-center gap-1 px-2 py-1.5 border border-transparent rounded hover:border-white cursor-pointer">
-          <span className="text-lg">�</span>
+          <span className="text-lg">&#x1F4CD;</span>
           <div>
             <div className="text-xs text-gray-300">Deliver to</div>
             <div className="font-bold text-sm">New York 10001</div>
@@ -694,13 +713,13 @@ const Header = () => {
               className="bg-gray-100 border-none px-2.5 rounded-l text-black text-sm cursor-pointer h-full min-w-[60px]"
               onChange={(e) => {
                 if (e.target.value !== 'All') {
-                  navigate(`/category/${e.target.value.toLowerCase().replace(/\s+/g, '-')}`)
+                  navigate(`/category/${e.target.value}`)
                 }
               }}
             >
               <option value="All">All</option>
               {categories.map((category) => (
-                <option key={category.name} value={category.name}>
+                <option key={category.name} value={category.slug}>
                   {category.name}
                 </option>
               ))}
@@ -832,8 +851,8 @@ const Header = () => {
           </div>
         )}
 
-        {/* 7. Returns & Orders - Amazon Style */}
-        <Link to="/orders" className="desktop-only hidden md:flex flex-col px-2 py-1.5 border border-transparent rounded hover:border-white no-underline text-white flex-shrink-0">
+        {/* 7. Returns & Orders - Amazon Style - only on lg+ to prevent crowding when logged in */}
+        <Link to="/orders" className="desktop-only hidden lg:flex flex-col px-2 py-1.5 border border-transparent rounded hover:border-white no-underline text-white flex-shrink-0">
           <span className="text-xs">Returns</span>
           <span className="font-bold text-sm">& Orders</span>
         </Link>
@@ -845,9 +864,9 @@ const Header = () => {
           </div>
         )}
 
-        {/* Wishlist - Show icon on mobile */}
+        {/* Wishlist - Show on lg+ screens only to avoid crowding at md */}
         {isAuthenticated && (
-          <Link to="/wishlist" className="mobile-wishlist flex items-center gap-0.5 sm:gap-1 px-0.5 sm:px-1 md:px-2 py-0.5 sm:py-1 border border-transparent rounded hover:border-white no-underline text-white flex-shrink-0" style={{ minWidth: '36px' }}>
+          <Link to="/wishlist" className="mobile-wishlist hidden lg:flex items-center gap-0.5 sm:gap-1 px-0.5 sm:px-1 md:px-2 py-0.5 sm:py-1 border border-transparent rounded hover:border-white no-underline text-white flex-shrink-0" style={{ minWidth: '36px' }}>
             <span className="text-base sm:text-xl md:text-2xl">❤️</span>
             <span className="font-bold text-sm hidden lg:inline">Wishlist</span>
           </Link>
@@ -863,7 +882,7 @@ const Header = () => {
               </span>
             )}
           </div>
-          <div className="flex flex-col hidden sm:flex">
+          <div className="hidden sm:flex flex-col">
             <span className="text-xs text-orange-400 font-bold">{cartCount}</span>
             <span className="font-bold text-xs sm:text-sm">Cart</span>
           </div>

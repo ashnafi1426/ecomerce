@@ -36,11 +36,23 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Create socket connection
-    // Remove /api from the URL if present, Socket.IO connects to base URL
-    let SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    SOCKET_URL = SOCKET_URL.replace('/api', ''); // Remove /api suffix
+    // Environment-aware Socket.IO URL configuration
+    let SOCKET_URL;
     
+    // Use VITE_SOCKET_URL if available, otherwise derive from VITE_API_URL
+    if (import.meta.env.VITE_SOCKET_URL) {
+      SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
+    } else if (import.meta.env.VITE_API_URL) {
+      // Remove /api suffix from API URL to get base URL
+      SOCKET_URL = import.meta.env.VITE_API_URL.replace('/api', '');
+    } else {
+      // Fallback for development
+      SOCKET_URL = import.meta.env.MODE === 'production' 
+        ? 'https://your-backend-domain.com' 
+        : 'http://localhost:3000';
+    }
+    
+    console.log('[Socket] Environment:', import.meta.env.MODE);
     console.log('[Socket] Connecting to:', SOCKET_URL);
     console.log('[Socket] Token present:', !!token);
     console.log('[Socket] User:', user?.email);
@@ -54,7 +66,7 @@ export const SocketProvider = ({ children }) => {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
-      timeout: 20000, // Increased connection timeout
+      timeout: 20000, // Connection timeout
       autoConnect: true,
       forceNew: false, // Don't force new connection
       upgrade: true, // Allow transport upgrade

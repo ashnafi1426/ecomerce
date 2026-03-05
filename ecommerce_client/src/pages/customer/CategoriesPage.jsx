@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import axios from 'axios'
+import api from '../../config/api'
 import toast from 'react-hot-toast'
 
 const CategoriesPage = () => {
@@ -13,8 +13,8 @@ const CategoriesPage = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/categories`)
-      setCategories(response.data.categories || [])
+      const response = await api.get('/categories')
+      setCategories(response.data || [])
     } catch (error) {
       console.error('Error fetching categories:', error)
       toast.error('Failed to load categories')

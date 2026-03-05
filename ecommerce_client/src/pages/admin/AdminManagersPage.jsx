@@ -61,7 +61,7 @@ const AdminManagersPage = () => {
             console.log('✅ Managers response:', response);
             
             // Handle response data structure
-            const apiResponse = response.data || response;
+            const apiResponse = response;
             const managersData = apiResponse.managers || apiResponse.data || [];
             setManagers(managersData);
             

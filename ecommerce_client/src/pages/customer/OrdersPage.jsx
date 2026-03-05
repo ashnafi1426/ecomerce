@@ -14,7 +14,6 @@ const OrdersPage = () => {
 
   useEffect(() => {
     fetchOrders()
-    
     // Handle navigation state from payment success
     if (location.state?.showSuccess && location.state?.newOrderId) {
       toast.success(`Order #${location.state.newOrderId.substring(0, 8)} placed successfully!`)
@@ -23,19 +22,16 @@ const OrdersPage = () => {
     }
   }, [location.state])
 
-  // Force refresh when component mounts or when coming from payment
+  // Refresh orders when window regains focus (user returns from payment page)
   useEffect(() => {
     const forceRefresh = () => {
       console.log('🔄 Force refreshing orders...')
       fetchOrders()
     }
-    
-    // Refresh immediately
-    forceRefresh()
-    
-    // Also refresh when window gains focus (user comes back from payment)
+
+    // Only add focus listener — initial fetch is handled by the location.state effect above
     window.addEventListener('focus', forceRefresh)
-    
+
     return () => {
       window.removeEventListener('focus', forceRefresh)
     }
@@ -77,12 +73,6 @@ const OrdersPage = () => {
           if (response.orders && Array.isArray(response.orders)) {
             ordersData = response.orders
             console.log('✅ Found orders in response.orders')
-          } else if (response.data?.orders && Array.isArray(response.data.orders)) {
-            ordersData = response.data.orders
-            console.log('✅ Found orders in response.data.orders')
-          } else if (response.data && Array.isArray(response.data)) {
-            ordersData = response.data
-            console.log('✅ Found orders in response.data')
           } else {
             console.warn('⚠️ Unknown response structure:', response)
             ordersData = []

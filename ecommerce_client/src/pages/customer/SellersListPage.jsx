@@ -24,7 +24,7 @@ const SellersListPage = () => {
       setLoading(true);
       // Use public browse endpoint
       const response = await api.get('/sellers/browse');
-      setSellers(response.data.data || []);
+      setSellers(response.data || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching sellers:', err);

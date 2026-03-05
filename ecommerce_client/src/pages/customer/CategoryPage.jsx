@@ -43,7 +43,7 @@ const CategoryPage = () => {
       console.log('📦 Category products response:', productsRes)
 
       // Find the specific category
-      const categoryList = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.categories || []
+      const categoryList = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || []
       const foundCategory = categoryList.find(cat => cat.id == categoryId)
       
       if (foundCategory) {
@@ -53,7 +53,7 @@ const CategoryPage = () => {
       }
 
       // Set products
-      const productList = Array.isArray(productsRes) ? productsRes : productsRes?.products || []
+      const productList = Array.isArray(productsRes) ? productsRes : productsRes?.data || []
       setProducts(productList)
 
     } catch (error) {
@@ -75,7 +75,7 @@ const CategoryPage = () => {
         sort: filters.sortBy 
       })
       
-      const productList = Array.isArray(response) ? response : response?.products || []
+      const productList = Array.isArray(response) ? response : response?.data || []
       setProducts(productList)
       
     } catch (error) {

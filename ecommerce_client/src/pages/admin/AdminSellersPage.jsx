@@ -70,7 +70,7 @@ const AdminSellersPage = () => {
             console.log('✅ Sellers response:', response);
             
             // Handle response data structure - response.data contains the actual API response
-            const apiResponse = response.data || response;
+            const apiResponse = response;
             const sellersData = apiResponse.sellers || apiResponse.data || [];
             setSellers(sellersData);
             

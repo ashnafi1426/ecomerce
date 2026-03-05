@@ -13,7 +13,7 @@ const CustomerAddressesPage = () => {
   const fetchAddresses = async () => {
     try {
       const response = await api.get('/addresses')
-      setAddresses(response.data.data || [])
+      setAddresses(response.data || [])
     } catch (error) {
       toast.error('Failed to load addresses')
     } finally {

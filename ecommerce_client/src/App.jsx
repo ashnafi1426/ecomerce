@@ -15,6 +15,8 @@ import ManagerLayout from './layouts/ManagerLayout'
 // Auth Pages
 import LoginPageMinimal from './pages/auth/LoginPageMinimal'
 import RegisterPage from './pages/auth/RegisterPage'
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 
 // Customer Pages
 import HomePage from './pages/customer/HomePage'
@@ -120,6 +122,8 @@ function App() {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPageMinimal />} />
           <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
         <Route path="/seller-register" element={<SellerRegisterPage />} />
         <Route path="/seller/register" element={<SellerRegisterPage />} />

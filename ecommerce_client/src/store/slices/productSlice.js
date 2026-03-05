@@ -6,7 +6,7 @@ export const fetchProducts = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await api.get('/products', { params })
-      return response.data
+      return response
     } catch (error) {
       return rejectWithValue(error)
     }
@@ -18,7 +18,7 @@ export const fetchProductById = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const response = await api.get(`/products/${id}`)
-      return response.data
+      return response
     } catch (error) {
       return rejectWithValue(error)
     }

@@ -30,6 +30,12 @@ const ProductPage = () => {
   const [isInWishlist, setIsInWishlist] = useState(false)
   const [wishlistLoading, setWishlistLoading] = useState(false)
 
+  // Variant state
+  const [variants, setVariants] = useState([])
+  const [selectedVariant, setSelectedVariant] = useState(null)
+  const [selectedOptions, setSelectedOptions] = useState({}) // e.g. {color: 'Red', size: 'M'}
+  const [variantAttributes, setVariantAttributes] = useState({}) // e.g. {color: ['Red','Blue'], size: ['S','M','L']}
+
   useEffect(() => {
     if (id) {
       fetchProduct()
@@ -47,7 +53,7 @@ const ProductPage = () => {
       
       // Fetch product from enhanced view
       const response = await api.get(`/products/${id}`)
-      const productData = response.data
+      const productData = response
       
       console.log('Product data received:', productData)
       
@@ -57,9 +63,9 @@ const ProductPage = () => {
         name: productData.title || productData.name,
         image: productData.image_url || productData.image,
         price: Number(productData.price),
-        original_price: productData.original_price ? Number(productData.price * 1.6) : Number(productData.price * 1.6),
-        rating: productData.average_rating || productData.rating || 4.3,
-        reviews_count: productData.total_reviews || productData.reviews_count || 1234,
+        original_price: productData.compare_at_price ? Number(productData.compare_at_price) : null,
+        rating: productData.average_rating || productData.rating || null,
+        reviews_count: productData.total_reviews || productData.reviews_count || 0,
         seller_name: productData.seller_name || 'FastShop',
         seller_id: productData.seller_id || 1,
         stock_status: productData.stock_status || 'IN_STOCK',
@@ -92,7 +98,23 @@ const ProductPage = () => {
       // Set product images
       const images = productData.images || (productData.image_url ? [productData.image_url] : [productData.image || PLACEHOLDERS.product])
       setProductImages(images)
-      
+
+      // Fetch variants if available
+      if (productData.variants && productData.variants.length > 0) {
+        processVariants(productData.variants)
+      } else {
+        // Try fetching variants separately
+        try {
+          const variantData = await api.get(`/variants/products/${id}`)
+          const variantList = variantData.variants || variantData || []
+          if (variantList.length > 0) {
+            processVariants(variantList)
+          }
+        } catch (e) {
+          // No variants, that's fine
+        }
+      }
+
     } catch (err) {
       console.error('Error fetching product:', err)
       setError(err.message || 'Failed to load product')
@@ -100,6 +122,89 @@ const ProductPage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const processVariants = (variantList) => {
+    setVariants(variantList)
+
+    // Extract unique attribute values
+    const attrs = {}
+    variantList.forEach(v => {
+      if (v.attributes) {
+        Object.entries(v.attributes).forEach(([key, val]) => {
+          if (!attrs[key]) attrs[key] = []
+          if (!attrs[key].includes(val)) attrs[key].push(val)
+        })
+      } else {
+        // Support flat fields: color, size, storage, material, style
+        ;['color', 'size', 'storage', 'material', 'style'].forEach(field => {
+          if (v[field]) {
+            if (!attrs[field]) attrs[field] = []
+            if (!attrs[field].includes(v[field])) attrs[field].push(v[field])
+          }
+        })
+      }
+    })
+    setVariantAttributes(attrs)
+
+    // Auto-select first active variant
+    const firstActive = variantList.find(v => v.is_active !== false && v.stock_quantity > 0) || variantList[0]
+    if (firstActive) {
+      selectVariant(firstActive, attrs, variantList)
+    }
+  }
+
+  const selectVariant = (variant, attrs = variantAttributes, variantList = variants) => {
+    setSelectedVariant(variant)
+    const opts = {}
+    if (variant.attributes) {
+      Object.assign(opts, variant.attributes)
+    } else {
+      ;['color', 'size', 'storage', 'material', 'style'].forEach(field => {
+        if (variant[field]) opts[field] = variant[field]
+      })
+    }
+    setSelectedOptions(opts)
+
+    // Update price if variant has override
+    if (variant.price) {
+      setProduct(prev => prev ? { ...prev, price: Number(variant.price) } : prev)
+    }
+
+    // Update stock from variant
+    if (variant.stock_quantity !== undefined) {
+      const qty = Number(variant.stock_quantity)
+      setAvailableQuantity(qty)
+      setStockStatus(qty === 0 ? 'OUT_OF_STOCK' : qty <= 5 ? 'LOW_STOCK' : 'IN_STOCK')
+    }
+  }
+
+  const handleOptionSelect = (attrKey, value) => {
+    const newOpts = { ...selectedOptions, [attrKey]: value }
+    setSelectedOptions(newOpts)
+
+    // Find matching variant
+    const match = variants.find(v => {
+      const vAttrs = v.attributes || {}
+      ;['color', 'size', 'storage', 'material', 'style'].forEach(f => {
+        if (v[f]) vAttrs[f] = v[f]
+      })
+      return Object.entries(newOpts).every(([k, val]) => vAttrs[k] === val)
+    })
+
+    if (match) selectVariant(match)
+  }
+
+  const isOptionAvailable = (attrKey, value) => {
+    const newOpts = { ...selectedOptions, [attrKey]: value }
+    return variants.some(v => {
+      const vAttrs = v.attributes || {}
+      ;['color', 'size', 'storage', 'material', 'style'].forEach(f => {
+        if (v[f]) vAttrs[f] = v[f]
+      })
+      const matches = Object.entries(newOpts).every(([k, val]) => vAttrs[k] === val)
+      return matches && (v.stock_quantity === undefined || v.stock_quantity > 0)
+    })
   }
 
   const handleAddToCart = async () => {
@@ -132,6 +237,7 @@ const ProductPage = () => {
         price: product.price,
         image: product.image,
         quantity,
+        variantId: selectedVariant?.id || null,
         price_at_add: product.price // Track price at time of adding
       }
       
@@ -170,9 +276,10 @@ const ProductPage = () => {
         price: product.price,
         image: product.image,
         quantity,
+        variantId: selectedVariant?.id || null,
         price_at_add: product.price
       }
-      
+
       dispatch(addToCart(cartItem))
       navigate('/checkout')
     } catch (err) {
@@ -188,7 +295,7 @@ const ProductPage = () => {
       if (!token) return // User not logged in
       
       const response = await api.get(`/wishlist/check/${id}`)
-      setIsInWishlist(response.data.isInWishlist)
+      setIsInWishlist(response.isInWishlist)
     } catch (err) {
       console.error('Error checking wishlist status:', err)
     }
@@ -278,9 +385,9 @@ const ProductPage = () => {
   }
 
   const images = productImages.length > 0 ? productImages : [product.image || PLACEHOLDERS.product]
-  const rating = product.rating || 4.3
-  const reviews = product.reviews_count || 1234
-  const originalPrice = product.original_price || product.price * 1.6
+  const rating = product.rating
+  const reviews = product.reviews_count || 0
+  const originalPrice = product.original_price
   const savings = originalPrice - product.price
   const savingsPercent = Math.round((savings / originalPrice) * 100)
   
@@ -436,6 +543,68 @@ const ProductPage = () => {
                 <span>Prime FREE Delivery</span>
               </div>
             </div>
+
+            {/* Variant Selection */}
+            {Object.keys(variantAttributes).length > 0 && (
+              <div className="mb-6 pb-4 border-b border-[#D5D9D9]">
+                {Object.entries(variantAttributes).map(([attrKey, values]) => (
+                  <div key={attrKey} className="mb-4">
+                    <div className="text-sm font-semibold text-[#0F1111] mb-2 capitalize">
+                      {attrKey}:{' '}
+                      <span className="font-normal text-[#565959]">{selectedOptions[attrKey] || ''}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {values.map(value => {
+                        const isSelected = selectedOptions[attrKey] === value
+                        const available = isOptionAvailable(attrKey, value)
+
+                        if (attrKey === 'color') {
+                          // Color swatch style
+                          const colorMap = {
+                            red: '#dc2626', blue: '#2563eb', green: '#16a34a', black: '#111827',
+                            white: '#f9fafb', yellow: '#f59e0b', purple: '#7c3aed', pink: '#db2777',
+                            orange: '#ea580c', gray: '#6b7280', grey: '#6b7280', silver: '#9ca3af',
+                            gold: '#d97706', navy: '#1e3a5f', brown: '#92400e'
+                          }
+                          const bgColor = colorMap[value.toLowerCase()] || '#9ca3af'
+                          return (
+                            <button
+                              key={value}
+                              onClick={() => available && handleOptionSelect(attrKey, value)}
+                              title={value}
+                              className={`w-9 h-9 rounded-full border-2 transition-all ${
+                                isSelected ? 'border-[#FF9900] scale-110' : 'border-[#D5D9D9] hover:border-[#565959]'
+                              } ${!available ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                              style={{ backgroundColor: bgColor }}
+                            />
+                          )
+                        }
+
+                        // Text button style (size, storage, etc.)
+                        return (
+                          <button
+                            key={value}
+                            onClick={() => available && handleOptionSelect(attrKey, value)}
+                            className={`px-3 py-1.5 text-sm border rounded transition-all ${
+                              isSelected
+                                ? 'border-[#FF9900] bg-[#FFF3cd] text-[#0F1111] font-semibold'
+                                : available
+                                ? 'border-[#D5D9D9] text-[#0F1111] hover:border-[#565959]'
+                                : 'border-[#D5D9D9] text-[#A0A0A0] line-through cursor-not-allowed'
+                            }`}
+                          >
+                            {value}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+                {selectedVariant?.sku && (
+                  <p className="text-xs text-[#565959] mt-1">SKU: {selectedVariant.sku}</p>
+                )}
+              </div>
+            )}
 
             {/* About This Item */}
             <div className="mb-6">
