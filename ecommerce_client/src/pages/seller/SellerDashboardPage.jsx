@@ -284,6 +284,48 @@ const SellerDashboardPage = () => {
         </div>
       </div>
 
+      {/* Quick Access */}
+      <div style={{ marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.4em', fontWeight: 600, color: '#0F1111', marginBottom: '15px' }}>Quick Access</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+          <Link to="/seller/returns" style={{ background: '#FFFFFF', padding: '20px', borderRadius: '8px', border: '1px solid #D5D9D9', textDecoration: 'none', color: '#0F1111', display: 'flex', alignItems: 'center', gap: '15px', transition: 'box-shadow 0.2s' }}>
+            <span style={{ fontSize: '2em' }}>🔄</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1em' }}>Returns & Refunds</div>
+              <div style={{ fontSize: '0.85em', color: '#565959' }}>Manage customer returns</div>
+            </div>
+          </Link>
+          <Link to="/seller/shipping" style={{ background: '#FFFFFF', padding: '20px', borderRadius: '8px', border: '1px solid #D5D9D9', textDecoration: 'none', color: '#0F1111', display: 'flex', alignItems: 'center', gap: '15px', transition: 'box-shadow 0.2s' }}>
+            <span style={{ fontSize: '2em' }}>🚚</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1em' }}>Shipping</div>
+              <div style={{ fontSize: '0.85em', color: '#565959' }}>Track shipments & labels</div>
+            </div>
+          </Link>
+          <Link to="/seller/disputes" style={{ background: '#FFFFFF', padding: '20px', borderRadius: '8px', border: '1px solid #D5D9D9', textDecoration: 'none', color: '#0F1111', display: 'flex', alignItems: 'center', gap: '15px', transition: 'box-shadow 0.2s' }}>
+            <span style={{ fontSize: '2em' }}>⚖️</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1em' }}>Disputes</div>
+              <div style={{ fontSize: '0.85em', color: '#565959' }}>Resolve customer issues</div>
+            </div>
+          </Link>
+          <Link to="/seller/replacements" style={{ background: '#FFFFFF', padding: '20px', borderRadius: '8px', border: '1px solid #D5D9D9', textDecoration: 'none', color: '#0F1111', display: 'flex', alignItems: 'center', gap: '15px', transition: 'box-shadow 0.2s' }}>
+            <span style={{ fontSize: '2em' }}>🔁</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1em' }}>Replacements</div>
+              <div style={{ fontSize: '0.85em', color: '#565959' }}>Manage product replacements</div>
+            </div>
+          </Link>
+          <Link to="/seller/payouts" style={{ background: '#FFFFFF', padding: '20px', borderRadius: '8px', border: '1px solid #D5D9D9', textDecoration: 'none', color: '#0F1111', display: 'flex', alignItems: 'center', gap: '15px', transition: 'box-shadow 0.2s' }}>
+            <span style={{ fontSize: '2em' }}>💳</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1em' }}>Payouts</div>
+              <div style={{ fontSize: '0.85em', color: '#565959' }}>View payout history</div>
+            </div>
+          </Link>
+        </div>
+      </div>
+
       {/* Recent Orders */}
       <div style={styles.section}>
         <div style={styles.sectionHeader}>

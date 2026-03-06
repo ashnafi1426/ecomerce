@@ -148,6 +148,21 @@ const SellerLayout = () => {
               </Link>
             </li>
             <li>
+              <Link to="/seller/returns" className={isActive('/seller/returns') ? 'active' : ''} onClick={closeMobileSidebar}>
+                <span className="menu-icon">🔄</span> Returns & Refunds
+              </Link>
+            </li>
+            <li>
+              <Link to="/seller/replacements" className={isActive('/seller/replacements') ? 'active' : ''} onClick={closeMobileSidebar}>
+                <span className="menu-icon">🔁</span> Replacements
+              </Link>
+            </li>
+            <li>
+              <Link to="/seller/shipping" className={isActive('/seller/shipping') ? 'active' : ''} onClick={closeMobileSidebar}>
+                <span className="menu-icon">🚚</span> Shipping
+              </Link>
+            </li>
+            <li>
               <Link to="/seller/inventory" className={isActive('/seller/inventory') ? 'active' : ''} onClick={closeMobileSidebar}>
                 <span className="menu-icon">📋</span> Inventory
               </Link>
@@ -155,6 +170,11 @@ const SellerLayout = () => {
             <li>
               <Link to="/seller/payments" className={isActive('/seller/payments') ? 'active' : ''} onClick={closeMobileSidebar}>
                 <span className="menu-icon">💰</span> Payments
+              </Link>
+            </li>
+            <li>
+              <Link to="/seller/disputes" className={isActive('/seller/disputes') ? 'active' : ''} onClick={closeMobileSidebar}>
+                <span className="menu-icon">⚖️</span> Disputes
               </Link>
             </li>
             <li>

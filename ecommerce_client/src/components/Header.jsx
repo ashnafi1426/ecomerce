@@ -12,27 +12,24 @@ const Header = () => {
   const { items } = useAppSelector((state) => state.cart)
   const guestCart = useAppSelector((state) => state.guestCart)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchCategory, setSearchCategory] = useState('All')
   const [showAccountMenu, setShowAccountMenu] = useState(false)
-  const [showLanguageMenu, setShowLanguageMenu] = useState(false)
   const [showCategoryMenu, setShowCategoryMenu] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
-  const [showMobileNav, setShowMobileNav] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const accountMenuRef = useRef(null)
-  const languageMenuRef = useRef(null)
   const categoryMenuRef = useRef(null)
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
-        setShowAccountMenu(false)
-      }
-      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
-        setShowLanguageMenu(false)
-      }
-      if (categoryMenuRef.current && !categoryMenuRef.current.contains(event.target)) {
-        setShowCategoryMenu(false)
-      }
+    const onScroll = () => setScrolled(window.scrollY > 10)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) setShowAccountMenu(false)
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target)) setShowCategoryMenu(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -41,7 +38,9 @@ const Header = () => {
   const handleSearch = (e) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`)
+      const params = new URLSearchParams({ q: searchQuery })
+      if (searchCategory !== 'All') params.set('category', searchCategory)
+      navigate(`/search?${params.toString()}`)
     }
   }
 
@@ -51,41 +50,21 @@ const Header = () => {
     setShowAccountMenu(false)
   }
 
-  // Calculate cart count based on total quantity
-  const cartCount = isAuthenticated 
-    ? items?.reduce((total, item) => total + (item.quantity || 0), 0) || 0
-    : guestCart.items?.reduce((total, item) => total + (item.quantity || 0), 0) || 0
+  const cartCount = isAuthenticated
+    ? items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0
+    : guestCart.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0
 
-  // Helper function to get category emoji
-  const getCategoryEmoji = (categoryName) => {
-    const emojiMap = {
-      'Electronics': '💻',
-      'Fashion': '👗',
-      'Clothing': '👕',
-      'Home & Kitchen': '🏠',
-      'Home & Garden': '🏡',
-      'Books': '📚',
-      'Sports': '⚽',
-      'Sports & Outdoors': '🏃',
-      'Toys': '🧸',
-      'Toys & Games': '🎮',
-      'Beauty & Personal Care': '💄',
-      'Automotive': '🚗',
-      'Gold': '💍'
-    };
-    return emojiMap[categoryName] || '📦';
-  };
+  const username = user?.display_name || user?.name || user?.email?.split('@')[0] || 'User'
 
-  // Categories — loaded from API, fallback to static list
   const FALLBACK_CATEGORIES = [
-    { name: 'Electronics', slug: 'electronics', icon: '📱' },
-    { name: 'Fashion', slug: 'fashion', icon: '👕' },
-    { name: 'Home & Kitchen', slug: 'home-kitchen', icon: '🏠' },
-    { name: 'Books', slug: 'books', icon: '📚' },
-    { name: 'Sports & Outdoors', slug: 'sports-outdoors', icon: '⚽' },
-    { name: 'Beauty & Personal Care', slug: 'beauty-personal-care', icon: '💄' },
-    { name: 'Toys & Games', slug: 'toys-games', icon: '🎮' },
-    { name: 'Automotive', slug: 'automotive', icon: '🚗' }
+    { name: 'Electronics', slug: 'electronics' },
+    { name: 'Fashion', slug: 'fashion' },
+    { name: 'Home & Kitchen', slug: 'home-kitchen' },
+    { name: 'Books', slug: 'books' },
+    { name: 'Sports & Outdoors', slug: 'sports-outdoors' },
+    { name: 'Beauty & Personal Care', slug: 'beauty-personal-care' },
+    { name: 'Toys & Games', slug: 'toys-games' },
+    { name: 'Automotive', slug: 'automotive' },
   ]
   const [categories, setCategories] = useState(FALLBACK_CATEGORIES)
 
@@ -97,1072 +76,402 @@ const Header = () => {
           setCategories(list.map(cat => ({
             name: cat.name,
             slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, ''),
-            icon: getCategoryEmoji(cat.name)
           })))
         }
       })
-      .catch(() => { /* keep fallback */ })
+      .catch(() => { })
   }, [])
 
   return (
-    <header className="bg-gray-800 text-white relative z-[1000] w-full">
+    <header style={{ position: 'sticky', top: 0, zIndex: 1000, width: '100%' }}>
       <style>{`
-        /* Amazon-Style Full-Width Header */
-        header {
-          width: 100% !important;
-          margin: 0 !important;
-          padding: 0 !important;
-        }
-        
-        /* Amazon-Style Responsive Design - Mobile First */
-        
-        /* Base Mobile Styles (All Mobile Devices) */
-        @media (max-width: 768px) {
-          /* Header container */
-          .mobile-header-container {
-            display: flex !important;
-            flex-direction: column !important;
-            padding: 8px !important;
-            gap: 8px !important;
-          }
-          
-          /* Top row with menu, logo, and icons */
-          .mobile-top-row {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            gap: 8px !important;
-          }
-          
-          /* Left section (menu + logo) */
-          .mobile-left-section {
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            flex: 1 !important;
-            min-width: 0 !important;
-          }
-          
-          /* Right section (icons) */
-          .mobile-right-section {
-            display: flex !important;
-            align-items: center !important;
-            gap: 6px !important;
-            flex-shrink: 0 !important;
-          }
-          
-          /* Search bar full width on second row */
-          .mobile-search-row {
-            width: 100% !important;
-            display: flex !important;
-          }
-          
-          /* Hide desktop elements */
-          .desktop-only { display: none !important; }
-          
-          /* Mobile menu button */
-          .mobile-menu-btn {
-            padding: 8px !important;
-            min-width: 40px !important;
-            min-height: 40px !important;
-            font-size: 20px !important;
-          }
-          
-          /* Logo compact */
-          .mobile-logo {
-            font-size: 18px !important;
-            padding: 4px 8px !important;
-            white-space: nowrap !important;
-          }
-          
-          .mobile-logo-icon {
-            font-size: 22px !important;
-          }
-          
-          /* Icons sizing */
-          .mobile-icon {
-            font-size: 24px !important;
-            padding: 4px !important;
-            min-width: 40px !important;
-            min-height: 40px !important;
-          }
-          
-          /* Account with username - Always visible */
-          .mobile-account-with-name {
-            display: flex !important;
-            align-items: center !important;
-            gap: 4px !important;
-            padding: 4px 8px !important;
-            background: rgba(255, 255, 255, 0.1) !important;
-            border-radius: 4px !important;
-          }
-          
-          .mobile-username {
-            display: inline-block !important;
-            font-size: 11px !important;
-            max-width: 70px !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            white-space: nowrap !important;
-            font-weight: 600 !important;
-            color: white !important;
-          }
-          
-          /* Ensure username is visible on all mobile devices */
-          .mobile-icon span.text-xs {
-            display: inline-block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            font-size: 11px !important;
-          }
-          
-          /* Account icon styling */
-          .mobile-account-icon {
-            font-size: 20px !important;
-            flex-shrink: 0 !important;
-          }
-          
-          /* Cart badge */
-          .mobile-cart-badge {
-            font-size: 10px !important;
-            min-width: 16px !important;
-            height: 16px !important;
-            top: -4px !important;
-            right: -4px !important;
-          }
-          
-          /* Search bar */
-          .mobile-search-input {
-            font-size: 14px !important;
-            padding: 10px 12px !important;
-            height: 40px !important;
-          }
-          
-          .mobile-search-btn {
-            min-width: 44px !important;
-            height: 40px !important;
-            font-size: 18px !important;
-          }
-          
-          /* Navigation bar */
-          nav {
-            padding: 8px !important;
-            gap: 8px !important;
-          }
-          
-          nav button, nav a {
-            padding: 6px 12px !important;
-            font-size: 12px !important;
-            min-height: 36px !important;
-          }
-        }
-        
-        /* Tablet and larger - Show username */
-        @media (min-width: 480px) and (max-width: 768px) {
-          .mobile-username {
-            display: inline !important;
-            font-size: 13px !important;
-            max-width: 100px !important;
-          }
-          
-          .mobile-account-with-name {
-            padding: 4px 10px !important;
-          }
-        }
-        
-        /* iPhone SE Specific (375px and below) */
-        @media (max-width: 375px) {
-          .mobile-header-container {
-            padding: 6px !important;
-            gap: 6px !important;
-          }
-          
-          .mobile-top-row {
-            gap: 6px !important;
-          }
-          
-          .mobile-left-section {
-            gap: 6px !important;
-          }
-          
-          .mobile-right-section {
-            gap: 4px !important;
-          }
-          
-          .mobile-menu-btn {
-            padding: 6px !important;
-            min-width: 36px !important;
-            min-height: 36px !important;
-            font-size: 18px !important;
-          }
-          
-          .mobile-logo {
-            font-size: 16px !important;
-            padding: 2px 6px !important;
-          }
-          
-          .mobile-logo-icon {
-            font-size: 20px !important;
-          }
-          
-          .mobile-icon {
-            font-size: 20px !important;
-            padding: 2px !important;
-            min-width: 36px !important;
-            min-height: 36px !important;
-          }
-          
-          /* Ensure username is visible on iPhone SE */
-          .mobile-icon span.text-xs {
-            display: inline-block !important;
-            font-size: 10px !important;
-            max-width: 55px !important;
-            font-weight: 600 !important;
-          }
-          
-          .mobile-account-with-name {
-            padding: 3px 6px !important;
-            gap: 3px !important;
-          }
-          
-          .mobile-account-icon {
-            font-size: 18px !important;
-          }
-          
-          .mobile-cart-badge {
-            font-size: 9px !important;
-            min-width: 14px !important;
-            height: 14px !important;
-          }
-          
-          .mobile-search-input {
-            font-size: 13px !important;
-            padding: 8px 10px !important;
-            height: 36px !important;
-          }
-          
-          .mobile-search-btn {
-            min-width: 40px !important;
-            height: 36px !important;
-            font-size: 16px !important;
-          }
-          
-          nav {
-            padding: 6px !important;
-            gap: 6px !important;
-          }
-          
-          nav button, nav a {
-            padding: 4px 10px !important;
-            font-size: 11px !important;
-            min-height: 32px !important;
-          }
-        }
-        
-        /* Mobile Small (376px - 480px) - Amazon Mobile View */
-        @media (min-width: 376px) and (max-width: 480px) {
-          .mobile-menu-btn { display: flex !important; }
-          .desktop-only { display: none !important; }
-          .mobile-search { width: 100% !important; }
-          .mobile-compact { padding: 6px 8px !important; }
-          .mobile-icon-only { font-size: 18px !important; }
-          .mobile-hide-text { display: none !important; }
-          .mobile-nav { display: none; }
-          .mobile-nav.show { display: block; }
-          .mobile-header-row { flex-wrap: wrap !important; gap: 4px !important; }
-          .mobile-full-width { width: 100% !important; flex: 1 1 100% !important; margin-top: 8px !important; }
-          
-          /* Compact header on mobile */
-          header > div:first-of-type { padding: 8px 12px !important; }
-          
-          /* Logo smaller on mobile */
-          .mobile-logo { font-size: 16px !important; }
-          .mobile-logo-icon { font-size: 20px !important; }
-          
-          /* Cart and icons compact */
-          .mobile-cart-icon { font-size: 24px !important; }
-          .mobile-badge { font-size: 10px !important; min-width: 16px !important; height: 16px !important; }
-        }
-        
-        /* Mobile Medium (481px - 640px) - Amazon Tablet Portrait */
-        @media (min-width: 481px) and (max-width: 640px) {
-          .mobile-menu-btn { display: flex !important; }
-          .desktop-only { display: none !important; }
-          .tablet-show { display: flex !important; }
-          .mobile-search { width: 100% !important; }
-          .mobile-nav { display: none; }
-          .mobile-nav.show { display: block; }
-          .mobile-header-row { flex-wrap: wrap !important; }
-          .mobile-full-width { width: 100% !important; flex: 1 1 100% !important; margin-top: 8px !important; }
-          
-          header > div:first-of-type { padding: 10px 16px !important; }
-        }
-        
-        /* Tablet (641px - 768px) - Amazon Tablet Landscape */
-        @media (min-width: 641px) and (max-width: 768px) {
-          .mobile-menu-btn { display: flex !important; }
-          .desktop-only { display: none !important; }
-          .tablet-show { display: flex !important; }
-          .mobile-nav { display: none; }
-          .mobile-nav.show { display: block; }
-          
-          /* Show some desktop features */
-          .tablet-returns { display: flex !important; }
-          
-          header > div:first-of-type { padding: 12px 20px !important; gap: 8px !important; }
-        }
-        
-        /* Tablet Large (769px - 1024px) - Amazon Desktop Compact */
-        @media (min-width: 769px) and (max-width: 1024px) {
-          .mobile-menu-btn { display: none !important; }
-          .mobile-only { display: none !important; }
-          .tablet-compact { padding: 10px 16px !important; }
-          .tablet-hide { display: none !important; }
-          
-          /* Show most desktop features */
-          .desktop-only { display: flex !important; }
-          
-          /* Compact spacing */
-          header > div:first-of-type { gap: 8px !important; }
-          
-          /* Smaller text on compact desktop */
-          .tablet-text-sm { font-size: 12px !important; }
-        }
-        
-        /* Desktop Small (1025px - 1280px) - Amazon Standard Desktop */
-        @media (min-width: 1025px) and (max-width: 1280px) {
-          .mobile-menu-btn { display: none !important; }
-          .mobile-only { display: none !important; }
-          .desktop-show { display: flex !important; }
-          
-          header > div:first-of-type { gap: 12px !important; }
-        }
-        
-        /* Desktop Large (1281px+) - Amazon Wide Desktop */
-        @media (min-width: 1281px) {
-          .mobile-menu-btn { display: none !important; }
-          .mobile-only { display: none !important; }
-          .desktop-show { display: flex !important; }
-          .desktop-wide { display: flex !important; }
-          
-          header > div:first-of-type { gap: 16px !important; padding: 12px 24px !important; }
-        }
-        
-        /* Sticky Header - Always on top like Amazon */
-        header { 
-          position: sticky !important; 
-          top: 0 !important; 
-          z-index: 1000 !important;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        /* Touch-friendly buttons on mobile - only for header interactive elements */
-        @media (max-width: 768px) {
-          header .mobile-menu-btn,
-          header .mobile-icon,
-          header .mobile-account-with-name,
-          header .mobile-search-btn {
-            min-height: 44px !important;
-            min-width: 44px !important;
-          }
-        }
-        
-        /* Desktop interactions */
-        @media (min-width: 769px) {
-          header button, header a {
-            cursor: pointer !important;
-            pointer-events: auto !important;
-          }
+        /* ── Base reset ── */
+        .hdr { background: #0F1111; color: #fff; font-family: Arial, sans-serif; }
+        .hdr *, .hdr *::before, .hdr *::after { box-sizing: border-box; }
+        .hdr a { color: inherit; text-decoration: none; }
 
-          header nav button:hover,
-          header nav a:hover {
-            border-color: white !important;
-          }
+        /* ── Top bar ── */
+        .hdr-top { background: #232F3E; font-size: 14px; color: #ccc; }
+        .hdr-top-inner { max-width: 1500px; margin: 0 auto; padding: 8px 20px; display: flex; align-items: center; gap: 24px; }
+        .hdr-top a { color: #ccc; transition: color .15s; }
+        .hdr-top a:hover { color: #fff; text-decoration: underline; }
 
-          .desktop-only {
-            display: flex !important;
-            pointer-events: auto !important;
-          }
+        /* ── Main bar ── */
+        .hdr-main { background: #131921; padding: 12px 20px; display: flex; align-items: center; gap: 14px; transition: box-shadow .2s; }
+        .hdr-main.scrolled { box-shadow: 0 4px 20px rgba(0,0,0,.7); }
+
+        /* ── Logo ── */
+        .hdr-logo { display: flex; flex-direction: column; padding: 8px 10px; border: 1px solid transparent; border-radius: 3px; flex-shrink: 0; transition: border-color .15s; cursor: pointer; }
+        .hdr-logo:hover { border-color: #fff; }
+        .hdr-logo-name { font-size: 28px; font-weight: 800; color: #FF9900; letter-spacing: -1px; line-height: 1; }
+        .hdr-logo-sub { font-size: 14px; color: #aaa; line-height: 1.2; }
+
+        /* ── Deliver to ── */
+        .hdr-deliver { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; flex-shrink: 0; transition: border-color .15s; white-space: nowrap; }
+        .hdr-deliver:hover { border-color: #fff; }
+        .hdr-deliver-icon { font-size: 24px; }
+        .hdr-deliver-line1 { font-size: 13px; color: #ccc; }
+        .hdr-deliver-line2 { font-size: 16px; font-weight: 700; color: #fff; }
+
+        /* ── Search bar ── */
+        .hdr-search { flex: 1; display: flex; height: 50px; border-radius: 6px; overflow: hidden; min-width: 0; }
+        .hdr-search-cat { background: #F3F3F3; border: none; padding: 0 6px 0 10px; font-size: 14px; color: #555; cursor: pointer; border-right: 1px solid #cdcdcd; min-width: 65px; max-width: 150px; flex-shrink: 0; }
+        .hdr-search-cat:hover { background: #e6e6e6; }
+        .hdr-search-input { flex: 1; border: none; padding: 0 14px; font-size: 17px; color: #111; outline: none; min-width: 0; background: #fff; }
+        .hdr-search-input:focus { outline: 3px solid #FF9900; outline-offset: -3px; }
+        .hdr-search-btn { background: #FF9900; border: none; padding: 0 20px; cursor: pointer; flex-shrink: 0; transition: background .15s; display: flex; align-items: center; justify-content: center; }
+        .hdr-search-btn:hover { background: #e67e00; }
+
+        /* ── Right actions ── */
+        .hdr-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .hdr-action { padding: 8px 12px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; text-align: left; text-decoration: none; display: flex; flex-direction: column; }
+        .hdr-action:hover { border-color: #fff; }
+        .hdr-action-line1 { font-size: 13px; color: #ccc; white-space: nowrap; }
+        .hdr-action-line2 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+
+        /* ── Cart ── */
+        .hdr-cart { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; text-decoration: none; color: #fff; }
+        .hdr-cart:hover { border-color: #fff; }
+        .hdr-cart-wrap { position: relative; }
+        .hdr-cart-count { position: absolute; top: -8px; right: -10px; background: #FF9900; color: #111; font-size: 14px; font-weight: 700; min-width: 24px; height: 24px; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+        .hdr-cart-label { font-size: 17px; font-weight: 700; }
+
+        /* ── Dropdowns ── */
+        .hdr-dropdown { position: fixed; background: #fff; color: #111; border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.2); z-index: 99999; animation: hdrFadeIn .12s ease; }
+        @keyframes hdrFadeIn { from { opacity:0; transform: translateY(-6px); } to { opacity:1; transform: translateY(0); } }
+        .hdr-dd-item { display: block; padding: 10px 20px; font-size: 15px; color: #111; cursor: pointer; white-space: nowrap; transition: background .1s, color .1s; text-align: left; width: 100%; background: none; border: none; text-decoration: none; }
+        .hdr-dd-item:hover { background: #f1f1f1; color: #c45500; text-decoration: underline; }
+        .hdr-dd-heading { padding: 14px 20px 6px; font-size: 13px; font-weight: 700; color: #777; text-transform: uppercase; letter-spacing: .6px; }
+        .hdr-dd-sep { margin: 6px 0; border: none; border-top: 1px solid #e8e8e8; }
+
+        /* ── Nav bar ── */
+        .hdr-nav { background: #232F3E; }
+        .hdr-nav-inner { max-width: 1500px; margin: 0 auto; padding: 0 12px; display: flex; align-items: center; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+        .hdr-nav-inner::-webkit-scrollbar { display: none; }
+        .hdr-nav-link { font-size: 15px; color: #fff; padding: 11px 14px; white-space: nowrap; border: 1px solid transparent; border-radius: 3px; transition: border-color .15s; cursor: pointer; background: none; text-decoration: none; display: block; }
+        .hdr-nav-link:hover { border-color: #fff; color: #fff; }
+
+        /* ── Mobile hamburger ── */
+        .hdr-hamburger { background: none; border: 1px solid transparent; border-radius: 3px; color: #fff; padding: 10px 12px; cursor: pointer; flex-shrink: 0; display: none; align-items: center; gap: 6px; transition: border-color .15s; font-size: 16px; font-weight: 600; }
+        .hdr-hamburger:hover { border-color: #fff; }
+
+        /* ── Mobile drawer ── */
+        .hdr-drawer { display: none; background: #1a252f; border-top: 1px solid #374151; overflow: hidden; max-height: 0; transition: max-height .3s ease; }
+        .hdr-drawer.open { display: block; max-height: 80vh; overflow-y: auto; }
+        .hdr-drawer-inner { padding: 16px 20px 24px; }
+        .hdr-drawer-user { background: #223044; border-radius: 6px; padding: 16px 18px; margin-bottom: 16px; }
+        .hdr-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #9ca3af; letter-spacing: .8px; padding: 14px 4px 8px; }
+        .hdr-drawer-link { display: flex; align-items: center; gap: 14px; padding: 14px 12px; color: #e5e7eb; font-size: 16px; border-radius: 4px; transition: background .12s; text-decoration: none; }
+        .hdr-drawer-link:hover { background: rgba(255,255,255,.07); color: #fff; }
+
+        /* ── Responsive ── */
+        @media (max-width: 1199px) { .hdr-deliver { display: none; } }
+        @media (max-width: 899px) {
+          .hdr-main { padding: 10px 14px; gap: 10px; }
+          .hdr-action-line1 { display: none; }
+          .hdr-cart-label { display: none; }
         }
-        
-        /* Dropdown positioning - Always above content */
-        header .fixed {
-          position: fixed !important;
-          z-index: 99999 !important;
+        @media (max-width: 767px) {
+          .hdr-top { display: none; }
+          .hdr-main { padding: 10px 12px; gap: 8px; }
+          .hdr-hamburger { display: flex; }
+          .hdr-search-cat { display: none; }
+          .hdr-action-line1, .hdr-action-line2 { display: none; }
+          .hdr-orders, .hdr-wishlist, .hdr-notifications { display: none !important; }
+          .hdr-cart-label { display: none; }
+          .hdr-logo-sub { display: none; }
+          .hdr-action { padding: 6px 7px; }
+          .hdr-action-icon { font-size: 26px; display: block !important; }
+          .hdr-logo-name { font-size: 22px; }
         }
-        
-        nav .relative {
-          position: relative !important;
-          z-index: 1001 !important;
-        }
-        
-        /* Smooth transitions - scoped to interactive elements only */
-        header button,
-        header a,
-        header select {
-          transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-        }
-        
-        /* Hide scrollbar on mobile nav */
-        .overflow-x-auto::-webkit-scrollbar {
-          display: none;
-        }
-        .overflow-x-auto {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        
-        /* Amazon-style focus states */
-        button:focus, a:focus {
-          outline: 2px solid #FF9900 !important;
-          outline-offset: 2px !important;
-        }
-        
-        /* Responsive text sizing */
-        @media (max-width: 480px) {
-          .responsive-text-xs { font-size: 10px !important; }
-          .responsive-text-sm { font-size: 12px !important; }
-          .responsive-text-base { font-size: 14px !important; }
-        }
-        
-        @media (min-width: 481px) and (max-width: 768px) {
-          .responsive-text-xs { font-size: 11px !important; }
-          .responsive-text-sm { font-size: 13px !important; }
-          .responsive-text-base { font-size: 15px !important; }
-        }
-        
-        @media (min-width: 769px) {
-          .responsive-text-xs { font-size: 12px !important; }
-          .responsive-text-sm { font-size: 14px !important; }
-          .responsive-text-base { font-size: 16px !important; }
+        @media (max-width: 479px) {
+          .hdr-main { padding: 8px 10px; gap: 6px; }
+          .hdr-logo-name { font-size: 20px; }
+          .hdr-search { height: 44px; }
+          .hdr-search-btn { padding: 0 16px; }
         }
       `}</style>
-      
-      
-      {/* Mobile Header Layout - Amazon Style */}
-      <div className="mobile-header-container md:hidden">
-        {/* Top Row: Menu + Logo + Account + Wishlist + Cart */}
-        <div className="mobile-top-row">
-          {/* Left Section: Menu + Logo */}
-          <div className="mobile-left-section">
-            {/* Mobile Menu Button */}
-            <button 
-              className="mobile-menu-btn text-white hover:bg-gray-700 rounded flex items-center justify-center transition-colors"
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              aria-label="Open menu"
-            >
-              ☰
-            </button>
 
-            {/* Logo */}
-            <Link 
-              to="/" 
-              className="mobile-logo font-bold flex items-center gap-1 hover:text-orange-400 transition-all flex-shrink-0 border border-transparent hover:border-white rounded"
-              aria-label="FastShop Home"
-            >
-              <span className="mobile-logo-icon">🛒</span>
-              <span className="text-orange-400 tracking-tight">FastShop</span>
-            </Link>
-          </div>
-
-          {/* Right Section: Account + Wishlist + Cart */}
-          <div className="mobile-right-section">
-            {/* Account Icon with Display Name */}
-            {isAuthenticated ? (
-              <div 
-                ref={accountMenuRef}
-                className="mobile-account-with-name relative flex items-center gap-1 border border-transparent rounded hover:border-white cursor-pointer"
-                onClick={() => setShowAccountMenu(!showAccountMenu)}
-              >
-                <span className="mobile-account-icon">👤</span>
-                <span className="mobile-username text-xs text-white whitespace-nowrap">
-                  {user?.display_name || user?.name || user?.email?.split('@')[0] || 'User'}
-                </span>
-                
-                {showAccountMenu && (
-                  <div 
-                    className="fixed bg-white text-black rounded shadow-lg w-80 max-w-[90vw]"
-                    style={{
-                      top: accountMenuRef.current?.getBoundingClientRect().bottom + 'px',
-                      right: window.innerWidth - (accountMenuRef.current?.getBoundingClientRect().right || 0) + 'px',
-                      zIndex: 99999
-                    }}
-                  >
-                    <div className="p-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h3 className="font-bold text-sm mb-3 text-gray-800">Your Account</h3>
-                          <div className="space-y-1">
-                            <button onClick={() => { setShowAccountMenu(false); navigate('/account'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Your Account</button>
-                            <button onClick={() => { setShowAccountMenu(false); navigate('/orders'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Your Orders</button>
-                            <button onClick={() => { setShowAccountMenu(false); navigate('/wishlist'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Your Wish List</button>
-                          </div>
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-sm mb-3 text-gray-800">Your Lists</h3>
-                          <div className="space-y-1">
-                            <button onClick={() => { setShowAccountMenu(false); navigate('/lists/create'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Create a List</button>
-                            {user?.role === 'seller' && (
-                              <button onClick={() => { setShowAccountMenu(false); navigate('/seller'); }} className="block w-full text-left text-sm text-orange-600 hover:underline font-medium">🏪 Seller Central</button>
-                            )}
-                            {user?.role === 'admin' && (
-                              <button onClick={() => { setShowAccountMenu(false); navigate('/admin'); }} className="block w-full text-left text-sm text-red-600 hover:underline font-medium">⚙️ Admin Dashboard</button>
-                            )}
-                            {user?.role === 'manager' && (
-                              <button onClick={() => { setShowAccountMenu(false); navigate('/manager'); }} className="block w-full text-left text-sm text-blue-600 hover:underline font-medium">📊 Manager Portal</button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <hr className="my-3" />
-                      <button onClick={handleLogout} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Sign Out</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Link 
-                to="/login" 
-                className="mobile-icon flex items-center justify-center border border-transparent rounded hover:border-white no-underline text-white"
-              >
-                <span className="text-2xl">👤</span>
-              </Link>
-            )}
-
-            {/* Wishlist Icon */}
-            {isAuthenticated && (
-              <Link 
-                to="/wishlist" 
-                className="mobile-icon flex items-center justify-center border border-transparent rounded hover:border-white no-underline text-white"
-              >
-                <span className="text-2xl">❤️</span>
-              </Link>
-            )}
-
-            {/* Cart Icon */}
-            <Link 
-              to="/cart" 
-              className="mobile-icon relative flex items-center justify-center border border-transparent rounded hover:border-white no-underline text-white"
-            >
-              <span className="text-2xl">🛒</span>
-              {cartCount > 0 && (
-                <span className="mobile-cart-badge absolute bg-orange-400 text-gray-800 rounded-full flex items-center justify-center font-bold px-1">
-                  {cartCount > 99 ? '99+' : cartCount}
-                </span>
-              )}
-            </Link>
-          </div>
-        </div>
-
-        {/* Search Bar Row - Full Width */}
-        <div className="mobile-search-row">
-          <form onSubmit={handleSearch} className="flex w-full">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="mobile-search-input flex-1 border-none text-black outline-none rounded-l"
-              placeholder="Search FastShop"
-            />
-            <button 
-              type="submit" 
-              className="mobile-search-btn bg-orange-400 border-none rounded-r hover:bg-orange-500 cursor-pointer transition-colors flex items-center justify-center"
-            >
-              🔍
-            </button>
-          </form>
+      {/* ── Top utility bar (desktop) ── */}
+      <div className="hdr-top">
+        <div className="hdr-top-inner">
+          <span style={{ marginRight: 'auto', color: '#FF9900', fontWeight: 600 }}>
+            🚚 FREE delivery on orders over $25
+          </span>
+          <Link to="/deals">Today's Deals</Link>
+          <Link to="/customer-service">Customer Service</Link>
+          <Link to="/seller/register">Sell on FastShop</Link>
+          {!isAuthenticated && (
+            <Link to="/login" style={{ fontWeight: 700, color: '#FF9900' }}>Sign in</Link>
+          )}
         </div>
       </div>
 
-      {/* Desktop Header Layout - Original */}
-      <div className="hidden md:flex items-center px-2 sm:px-3 md:px-4 lg:px-6 py-1.5 sm:py-2 md:py-2.5 gap-1 sm:gap-2 md:gap-3 lg:gap-4">
-        {/* 1. Mobile Menu Button - Mobile Only (Hidden on Desktop) */}
-        <button 
-          className="mobile-menu-btn text-lg sm:text-xl md:text-2xl p-1 sm:p-1.5 md:p-2 hover:bg-gray-700 rounded flex items-center justify-center md:hidden transition-colors"
-          onClick={() => setShowMobileMenu(!showMobileMenu)}
-          style={{ minWidth: '36px', minHeight: '36px' }}
-          aria-label="Open menu"
-        >
-          ☰
+      {/* ── Main bar ── */}
+      <div className={`hdr-main${scrolled ? ' scrolled' : ''}`}>
+
+        {/* Hamburger (mobile) */}
+        <button className="hdr-hamburger" onClick={() => setShowMobileMenu(p => !p)} aria-label="Menu">
+          <svg width="24" height="17" viewBox="0 0 24 17" fill="none">
+            <rect y="0" width="24" height="2.8" rx="1.4" fill="white" />
+            <rect y="7.1" width="24" height="2.8" rx="1.4" fill="white" />
+            <rect y="14.2" width="24" height="2.8" rx="1.4" fill="white" />
+          </svg>
+          All
         </button>
 
-        {/* 2. Logo with .com - Amazon Style Responsive */}
-        <Link 
-          to="/" 
-          className="text-xs sm:text-sm md:text-lg lg:text-xl xl:text-2xl font-bold flex items-center gap-0.5 sm:gap-1 hover:text-orange-400 transition-all flex-shrink-0 px-0.5 sm:px-1 md:px-2 border border-transparent hover:border-white rounded py-0.5 sm:py-1"
-          aria-label="FastShop Home"
-        >
-          <span className="text-base sm:text-lg md:text-2xl lg:text-3xl">🛒</span>
-          <span className="text-orange-400 tracking-tight whitespace-nowrap">FastShop</span>
-          <span className="responsive-text-xs text-gray-300 hidden md:inline">.com</span>
+        {/* Logo */}
+        <Link to="/" className="hdr-logo">
+          <span className="hdr-logo-name">FastShop</span>
+          <span className="hdr-logo-sub">.com</span>
         </Link>
 
-        {/* 3. Deliver To - Desktop Only */}
-        <div className="desktop-only hidden lg:flex items-center gap-1 px-2 py-1.5 border border-transparent rounded hover:border-white cursor-pointer">
-          <span className="text-lg">&#x1F4CD;</span>
+        {/* Deliver to (desktop ≥1200px) */}
+        <div className="hdr-deliver">
+          <span className="hdr-deliver-icon">📍</span>
           <div>
-            <div className="text-xs text-gray-300">Deliver to</div>
-            <div className="font-bold text-sm">New York 10001</div>
+            <div className="hdr-deliver-line1">Deliver to</div>
+            <div className="hdr-deliver-line2">United States</div>
           </div>
         </div>
 
-        {/* 4. Search Bar - Amazon Style */}
-        <form onSubmit={handleSearch} className="flex-1 flex h-8 sm:h-9 md:h-10 min-w-0 mobile-full-width order-last sm:order-none">
-          <div className="relative hidden md:block">
-            <select 
-              className="bg-gray-100 border-none px-2.5 rounded-l text-black text-sm cursor-pointer h-full min-w-[60px]"
-              onChange={(e) => {
-                if (e.target.value !== 'All') {
-                  navigate(`/category/${e.target.value}`)
-                }
-              }}
-            >
-              <option value="All">All</option>
-              {categories.map((category) => (
-                <option key={category.name} value={category.slug}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Search */}
+        <form onSubmit={handleSearch} className="hdr-search">
+          <select
+            className="hdr-search-cat"
+            value={searchCategory}
+            onChange={e => setSearchCategory(e.target.value)}
+          >
+            <option value="All">All</option>
+            {categories.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+          </select>
           <input
             type="text"
+            className="hdr-search-input"
+            placeholder="Search FastShop..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="mobile-search-input flex-1 border-none px-2 sm:px-3 md:px-4 text-black outline-none text-xs sm:text-sm rounded-l md:rounded-none"
-            placeholder="Search FastShop"
-            style={{ minWidth: '80px' }}
+            onChange={e => setSearchQuery(e.target.value)}
+            autoComplete="off"
           />
-          <button type="submit" className="mobile-search-btn bg-orange-400 border-none px-2 sm:px-2.5 md:px-5 rounded-r text-base sm:text-lg md:text-xl hover:bg-orange-500 cursor-pointer transition-colors flex items-center justify-center" style={{ minWidth: '36px' }}>
-            🔍
+          <button type="submit" className="hdr-search-btn" aria-label="Search">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
           </button>
         </form>
 
-        {/* 5. Language Selector - Desktop Only */}
-        <div 
-          ref={languageMenuRef}
-          className="desktop-only hidden lg:flex relative items-center gap-1 px-2 py-1.5 border border-transparent rounded hover:border-white cursor-pointer"
-          onMouseEnter={() => setShowLanguageMenu(true)}
-          onMouseLeave={() => setShowLanguageMenu(false)}
-          onClick={() => setShowLanguageMenu(!showLanguageMenu)}
-        >
-          <span className="text-lg">🇺🇸</span>
-          <span className="text-sm font-bold">EN</span>
-          <span className="text-xs">▼</span>
-          
-          {showLanguageMenu && (
-            <div 
-              className="fixed bg-white text-black rounded shadow-lg w-48"
-              style={{
-                top: languageMenuRef.current?.getBoundingClientRect().bottom + 'px',
-                left: languageMenuRef.current?.getBoundingClientRect().left + 'px',
-                zIndex: 99999
-              }}
-            >
-              <div className="p-2">
-                <div className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded cursor-pointer">
-                  <span>🇺🇸</span>
-                  <span className="text-sm">English - EN</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded cursor-pointer">
-                  <span>🇪🇸</span>
-                  <span className="text-sm">Español - ES</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded cursor-pointer">
-                  <span>🇫🇷</span>
-                  <span className="text-sm">Français - FR</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Right actions */}
+        <div className="hdr-actions">
 
-        {/* 6. Account & Lists - Amazon Style */}
-        {isAuthenticated ? (
-          <div 
-            ref={accountMenuRef}
-            className="mobile-account relative flex flex-col px-0.5 sm:px-1 md:px-2.5 py-0.5 sm:py-1 border border-transparent rounded hover:border-white cursor-pointer flex-shrink-0"
-            onMouseEnter={() => setShowAccountMenu(true)}
-            onMouseLeave={() => setShowAccountMenu(false)}
-            onClick={() => setShowAccountMenu(!showAccountMenu)}
-            style={{ minWidth: '36px' }}
-          >
-            <span className="text-xs hidden lg:block">Hello, {user?.display_name || user?.name || user?.email?.split('@')[0] || 'User'}</span>
-            <span className="font-bold text-xs sm:text-sm flex items-center gap-0.5 sm:gap-1 justify-center">
-              <span className="lg:hidden text-lg sm:text-xl">👤</span>
-              <span className="hidden lg:inline">Account & Lists</span>
-              <span className="text-xs hidden lg:inline">▼</span>
-            </span>
-            
-            {showAccountMenu && (
-              <div 
-                className="fixed bg-white text-black rounded shadow-lg w-80"
-                style={{
-                  top: accountMenuRef.current?.getBoundingClientRect().bottom + 'px',
-                  right: window.innerWidth - (accountMenuRef.current?.getBoundingClientRect().right || 0) + 'px',
-                  zIndex: 99999
-                }}
+          {/* Account dropdown */}
+          {isAuthenticated ? (
+            <div ref={accountMenuRef} style={{ position: 'relative' }}>
+              <button
+                className="hdr-action"
+                onClick={() => setShowAccountMenu(p => !p)}
+                onMouseEnter={() => setShowAccountMenu(true)}
               >
-                <div className="p-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <span className="hdr-action-line1">Hello, {username}</span>
+                <span className="hdr-action-line2">Account &amp; Lists ▾</span>
+                <span className="hdr-action-icon" style={{ display: 'none', fontSize: 26 }}>👤</span>
+              </button>
+              {showAccountMenu && (
+                <div
+                  className="hdr-dropdown"
+                  style={{
+                    top: (accountMenuRef.current?.getBoundingClientRect().bottom ?? 56) + 4,
+                    right: Math.max(0, window.innerWidth - (accountMenuRef.current?.getBoundingClientRect().right ?? 0)),
+                    width: 380,
+                    paddingBottom: 8,
+                  }}
+                  onMouseLeave={() => setShowAccountMenu(false)}
+                >
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
                     <div>
-                      <h3 className="font-bold text-sm mb-3 text-gray-800">Your Account</h3>
-                      <div className="space-y-1">
-                        <button onClick={() => { setShowAccountMenu(false); navigate('/account'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Your Account</button>
-                        <button onClick={() => { setShowAccountMenu(false); navigate('/orders'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Your Orders</button>
-                        <button onClick={() => { setShowAccountMenu(false); navigate('/wishlist'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Your Wish List</button>
-                        <button onClick={() => { setShowAccountMenu(false); navigate('/recommendations'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Your Recommendations</button>
-                        <button onClick={() => { setShowAccountMenu(false); navigate('/browsing-history'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Browsing History</button>
-                      </div>
+                      <div className="hdr-dd-heading">Your Account</div>
+                      <button className="hdr-dd-item" onClick={() => { navigate('/account'); setShowAccountMenu(false) }}>Your Account</button>
+                      <button className="hdr-dd-item" onClick={() => { navigate('/orders'); setShowAccountMenu(false) }}>Your Orders</button>
+                      <button className="hdr-dd-item" onClick={() => { navigate('/wishlist'); setShowAccountMenu(false) }}>Wish List</button>
+                      <button className="hdr-dd-item" onClick={() => { navigate('/recommendations'); setShowAccountMenu(false) }}>Recommendations</button>
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm mb-3 text-gray-800">Your Lists</h3>
-                      <div className="space-y-1">
-                        <button onClick={() => { setShowAccountMenu(false); navigate('/lists/create'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Create a List</button>
-                        <button onClick={() => { setShowAccountMenu(false); navigate('/wishlist'); }} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Find a List or Registry</button>
-                        {user?.role === 'seller' && (
-                          <button onClick={() => { setShowAccountMenu(false); navigate('/seller'); }} className="block w-full text-left text-sm text-orange-600 hover:underline font-medium">🏪 Seller Central</button>
-                        )}
-                        {user?.role === 'admin' && (
-                          <button onClick={() => { setShowAccountMenu(false); navigate('/admin'); }} className="block w-full text-left text-sm text-red-600 hover:underline font-medium">⚙️ Admin Dashboard</button>
-                        )}
-                        {user?.role === 'manager' && (
-                          <button onClick={() => { setShowAccountMenu(false); navigate('/manager'); }} className="block w-full text-left text-sm text-blue-600 hover:underline font-medium">📊 Manager Portal</button>
-                        )}
-                      </div>
+                      <div className="hdr-dd-heading">Your Lists</div>
+                      <button className="hdr-dd-item" onClick={() => { navigate('/lists/create'); setShowAccountMenu(false) }}>Create a List</button>
+                      <button className="hdr-dd-item" onClick={() => { navigate('/wishlist'); setShowAccountMenu(false) }}>Find a List</button>
+                      {user?.role === 'seller' && <button className="hdr-dd-item" style={{ color: '#c45500', fontWeight: 600 }} onClick={() => { navigate('/seller'); setShowAccountMenu(false) }}>Seller Central</button>}
+                      {user?.role === 'admin' && <button className="hdr-dd-item" style={{ color: '#c00', fontWeight: 600 }} onClick={() => { navigate('/admin'); setShowAccountMenu(false) }}>Admin Dashboard</button>}
+                      {user?.role === 'manager' && <button className="hdr-dd-item" style={{ color: '#0066c0', fontWeight: 600 }} onClick={() => { navigate('/manager'); setShowAccountMenu(false) }}>Manager Portal</button>}
                     </div>
                   </div>
-                  <hr className="my-3" />
-                  <button onClick={handleLogout} className="block w-full text-left text-sm text-gray-700 hover:text-orange-600 hover:underline">Sign Out</button>
+                  <hr className="hdr-dd-sep" />
+                  <button className="hdr-dd-item" onClick={handleLogout}>Sign Out</button>
                 </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-            <Link to="/login" className="mobile-account flex flex-col px-0.5 sm:px-1 md:px-2.5 py-0.5 sm:py-1 border border-transparent rounded hover:border-white no-underline text-white" style={{ minWidth: '36px' }}>
-              <span className="text-xs hidden lg:block">Hello, sign in</span>
-              <span className="font-bold text-xs sm:text-sm flex items-center gap-0.5 sm:gap-1 justify-center">
-                <span className="lg:hidden text-lg sm:text-xl">👤</span>
-                <span className="hidden lg:inline">Account & Lists</span>
-                <span className="text-xs hidden lg:inline">▼</span>
-              </span>
-            </Link>
-          </div>
-        )}
+              )}
+            </div>
+          ) : (
+              <Link to="/login" className="hdr-action">
+                <span className="hdr-action-line1">Hello, sign in</span>
+                <span className="hdr-action-line2">Account &amp; Lists ▾</span>
+                <span className="hdr-action-icon" style={{ display: 'none', fontSize: 26 }}>👤</span>
+              </Link>
+          )}
 
-        {/* 7. Returns & Orders - Amazon Style - only on lg+ to prevent crowding when logged in */}
-        <Link to="/orders" className="desktop-only hidden lg:flex flex-col px-2 py-1.5 border border-transparent rounded hover:border-white no-underline text-white flex-shrink-0">
-          <span className="text-xs">Returns</span>
-          <span className="font-bold text-sm">& Orders</span>
-        </Link>
-
-        {/* Notifications - Compact */}
-        {isAuthenticated && (
-          <div className="flex items-center px-0 sm:px-0.5 md:px-2 py-0.5 sm:py-1 flex-shrink-0">
-            <NotificationCenter />
-          </div>
-        )}
-
-        {/* Wishlist - Show on lg+ screens only to avoid crowding at md */}
-        {isAuthenticated && (
-          <Link to="/wishlist" className="mobile-wishlist hidden lg:flex items-center gap-0.5 sm:gap-1 px-0.5 sm:px-1 md:px-2 py-0.5 sm:py-1 border border-transparent rounded hover:border-white no-underline text-white flex-shrink-0" style={{ minWidth: '36px' }}>
-            <span className="text-base sm:text-xl md:text-2xl">❤️</span>
-            <span className="font-bold text-sm hidden lg:inline">Wishlist</span>
+          {/* Returns & Orders */}
+          <Link to="/orders" className="hdr-action hdr-orders">
+            <span className="hdr-action-line1">Returns</span>
+            <span className="hdr-action-line2">&amp; Orders</span>
           </Link>
-        )}
 
-        {/* 8. Cart - Amazon Style */}
-        <Link to="/cart" className="flex items-center gap-0.5 sm:gap-1 md:gap-2 px-0.5 sm:px-1 md:px-2 py-0.5 sm:py-1 border border-transparent rounded hover:border-white no-underline text-white flex-shrink-0" style={{ minWidth: '36px' }}>
-          <div className="mobile-cart-icon relative text-lg sm:text-xl md:text-3xl">
-            🛒
-            {cartCount > 0 && (
-              <span className="mobile-badge absolute -top-1 -right-2 bg-orange-400 text-gray-800 rounded-full min-w-[14px] sm:min-w-[16px] md:min-w-[20px] h-3.5 sm:h-4 md:h-5 flex items-center justify-center text-[9px] sm:text-xs font-bold px-0.5 sm:px-1">
-                {cartCount > 99 ? '99+' : cartCount}
-              </span>
-            )}
-          </div>
-          <div className="hidden sm:flex flex-col">
-            <span className="text-xs text-orange-400 font-bold">{cartCount}</span>
-            <span className="font-bold text-xs sm:text-sm">Cart</span>
-          </div>
-        </Link>
+          {/* Notifications */}
+          {isAuthenticated && (
+            <div className="hdr-notifications" style={{ display: 'flex', alignItems: 'center', padding: '0 4px' }}>
+              <NotificationCenter />
+            </div>
+          )}
+
+          {/* Wishlist */}
+          {isAuthenticated && (
+            <Link to="/wishlist" className="hdr-action hdr-wishlist" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 24, lineHeight: 1 }}>♡</span>
+              <span className="hdr-action-line2">Wishlist</span>
+            </Link>
+          )}
+
+          {/* Cart */}
+          <Link to="/cart" className="hdr-cart">
+            <div className="hdr-cart-wrap">
+              <svg width="42" height="36" viewBox="0 0 34 30" fill="none">
+                <path d="M2 2h3l4.5 16h14l3-10H8" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="13" cy="26" r="2" fill="white" />
+                <circle cx="24" cy="26" r="2" fill="white" />
+              </svg>
+              {cartCount > 0 && (
+                <span className="hdr-cart-count">{cartCount > 99 ? '99+' : cartCount}</span>
+              )}
+            </div>
+            <span className="hdr-cart-label">Cart</span>
+          </Link>
+        </div>
       </div>
 
-      {/* Mobile Menu Overlay - Enhanced */}
-      {showMobileMenu && (
-        <div className="md:hidden bg-gray-700 p-3 sm:p-4 border-t border-gray-600">
-          <div className="space-y-2 sm:space-y-3">
-            {isAuthenticated && (
-              <div className="bg-gray-600 p-3 rounded mb-3">
-                <div className="text-white font-bold text-sm mb-1">
-                  Hello, {user?.display_name || user?.name || user?.email?.split('@')[0] || 'User'}
-                </div>
-                <div className="text-gray-300 text-xs">{user?.email}</div>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <Link to="/orders" className="flex items-center gap-2 text-white py-2.5 px-3 bg-gray-600 hover:bg-gray-500 rounded text-sm no-underline" onClick={() => setShowMobileMenu(false)}>
-                <span className="text-lg">📦</span>
-                <span>Orders</span>
-              </Link>
-              {isAuthenticated && (
-                <Link to="/wishlist" className="flex items-center gap-2 text-white py-2.5 px-3 bg-gray-600 hover:bg-gray-500 rounded text-sm no-underline" onClick={() => setShowMobileMenu(false)}>
-                  <span className="text-lg">❤️</span>
-                  <span>Wishlist</span>
-                </Link>
-              )}
-              <Link to="/deals" className="flex items-center gap-2 text-white py-2.5 px-3 bg-gray-600 hover:bg-gray-500 rounded text-sm no-underline" onClick={() => setShowMobileMenu(false)}>
-                <span className="text-lg">🏷️</span>
-                <span>Deals</span>
-              </Link>
-              <Link to="/account" className="flex items-center gap-2 text-white py-2.5 px-3 bg-gray-600 hover:bg-gray-500 rounded text-sm no-underline" onClick={() => setShowMobileMenu(false)}>
-                <span className="text-lg">⚙️</span>
-                <span>Account</span>
-              </Link>
-            </div>
-
-            <div className="border-t border-gray-600 pt-3">
-              <div className="text-gray-300 text-xs font-bold mb-2 uppercase">Shop by Category</div>
-              {categories.slice(0, 6).map((category) => (
-                <Link
-                  key={category.slug}
-                  to={`/category/${category.slug}`}
-                  className="flex items-center gap-3 text-white py-2 px-3 hover:bg-gray-600 rounded text-sm no-underline"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  <span className="text-lg">{getCategoryEmoji(category.name)}</span>
-                  <span>{category.name}</span>
-                </Link>
-              ))}
-              <Link to="/categories" className="flex items-center gap-3 text-orange-400 py-2 px-3 hover:bg-gray-600 rounded text-sm font-medium no-underline" onClick={() => setShowMobileMenu(false)}>
-                <span className="text-lg">📂</span>
-                <span>See All Categories</span>
-              </Link>
-            </div>
-
-            <div className="border-t border-gray-600 pt-3">
-              <Link to="/customer-service" className="block text-white py-2 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileMenu(false)}>
-                💬 Customer Service
-              </Link>
-              <Link to="/sellers" className="block text-white py-2 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileMenu(false)}>
-                🏪 Browse Sellers
-              </Link>
-              <Link to="/seller/register" className="block text-white py-2 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileMenu(false)}>
-                💼 Sell on FastShop
-              </Link>
-            </div>
-
-            <div className="border-t border-gray-600 pt-3">
-              <div className="text-gray-300 text-xs mb-2">Language</div>
-              <div className="flex gap-2">
-                <button className="flex items-center gap-2 px-3 py-2 bg-gray-600 rounded text-white text-sm flex-1 justify-center">
-                  🇺🇸 EN
-                </button>
-                <button className="flex items-center gap-2 px-3 py-2 bg-gray-600 rounded text-white text-sm flex-1 justify-center">
-                  🇪🇸 ES
-                </button>
-                <button className="flex items-center gap-2 px-3 py-2 bg-gray-600 rounded text-white text-sm flex-1 justify-center">
-                  🇫🇷 FR
-                </button>
-              </div>
-            </div>
-
-            {isAuthenticated ? (
-              <div className="border-t border-gray-600 pt-3">
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setShowMobileMenu(false);
-                  }}
-                  className="w-full text-white py-2.5 px-3 bg-red-600 hover:bg-red-700 rounded text-sm font-medium"
-                >
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <div className="border-t border-gray-600 pt-3 space-y-2">
-                <Link
-                  to="/login"
-                  className="block w-full text-center text-white py-2.5 px-3 bg-orange-500 hover:bg-orange-600 rounded text-sm font-medium no-underline"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  className="block w-full text-center text-white py-2.5 px-3 bg-gray-600 hover:bg-gray-500 rounded text-sm font-medium no-underline"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  Create Account
+      {/* ── Navigation bar ── */}
+      <nav className="hdr-nav">
+        <div className="hdr-nav-inner">
+          {/* All categories */}
+          <div ref={categoryMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              className="hdr-nav-link"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
+              onClick={() => setShowCategoryMenu(p => !p)}
+              onMouseEnter={() => setShowCategoryMenu(true)}
+            >
+              <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+                <rect y="0" width="18" height="2.2" rx="1.1" fill="white" />
+                <rect y="5.9" width="18" height="2.2" rx="1.1" fill="white" />
+                <rect y="11.8" width="18" height="2.2" rx="1.1" fill="white" />
+              </svg>
+              All
+            </button>
+            {showCategoryMenu && (
+              <div
+                className="hdr-dropdown"
+                style={{
+                  top: (categoryMenuRef.current?.getBoundingClientRect().bottom ?? 88) + 2,
+                  left: categoryMenuRef.current?.getBoundingClientRect().left ?? 0,
+                  width: 280,
+                  maxHeight: 500,
+                  overflowY: 'auto',
+                  paddingBottom: 6,
+                }}
+                onMouseLeave={() => setShowCategoryMenu(false)}
+              >
+                {categories.map(cat => (
+                  <Link key={cat.slug} to={`/category/${cat.slug}`} className="hdr-dd-item" onClick={() => setShowCategoryMenu(false)}>
+                    {cat.name}
+                  </Link>
+                ))}
+                <hr className="hdr-dd-sep" />
+                <Link to="/categories" className="hdr-dd-item" style={{ color: '#c45500', fontWeight: 600 }} onClick={() => setShowCategoryMenu(false)}>
+                  See All Categories →
                 </Link>
               </div>
             )}
           </div>
-        </div>
-      )}
 
-      {/* Navigation Bar - Amazon Style */}
-      <nav className="bg-gray-700 px-2 sm:px-3 md:px-5 py-1.5 sm:py-2 md:py-2.5 flex items-center gap-1 sm:gap-2 md:gap-5 overflow-x-auto relative z-[1001]">
-        <button 
-          className="md:hidden text-white px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs sm:text-sm border border-transparent rounded hover:border-white flex items-center gap-0.5 sm:gap-1 whitespace-nowrap"
-          onClick={() => setShowMobileNav(!showMobileNav)}
-          style={{ minHeight: '32px' }}
-        >
-          ☰ <span className="hidden xs:inline">All</span>
-        </button>
-        
-        <div 
-          ref={categoryMenuRef}
-          className="relative hidden md:block z-[1002]"
-          onMouseEnter={() => setShowCategoryMenu(true)}
-          onMouseLeave={() => setShowCategoryMenu(false)}
-        >
-          <button 
-            className="text-white px-2 sm:px-2.5 py-1 text-xs sm:text-sm border border-transparent rounded hover:border-white flex items-center gap-0.5 sm:gap-1 cursor-pointer transition-colors"
-            onClick={() => setShowCategoryMenu(!showCategoryMenu)}
-            style={{ minHeight: '32px' }}
-          >
-            ☰ All <span className="text-xs ml-0.5 sm:ml-1">▼</span>
-          </button>
-          
-          {showCategoryMenu && (
-            <div 
-              className="fixed bg-white text-black rounded shadow-2xl w-64 border border-gray-200"
-              style={{
-                top: categoryMenuRef.current?.getBoundingClientRect().bottom + 'px',
-                left: categoryMenuRef.current?.getBoundingClientRect().left + 'px',
-                zIndex: 99999
-              }}
-            >
-              <div className="p-2 max-h-[500px] overflow-y-auto">
-                {categories.map((category) => (
-                  <Link
-                    key={category.slug}
-                    to={`/category/${category.slug}`}
-                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 rounded text-sm text-gray-800 no-underline transition-colors"
-                    onClick={() => setShowCategoryMenu(false)}
-                  >
-                    <span className="text-lg">{category.icon}</span>
-                    <span>{category.name}</span>
-                  </Link>
-                ))}
-                <hr className="my-2 border-gray-200" />
-                <Link
-                  to="/categories"
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-orange-50 rounded text-sm text-orange-600 font-medium no-underline transition-colors"
-                  onClick={() => setShowCategoryMenu(false)}
-                >
-                  <span className="text-lg">📂</span>
-                  <span>See All Categories</span>
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
+          <Link to="/deals" className="hdr-nav-link">Today's Deals</Link>
+          <Link to="/sellers" className="hdr-nav-link">Browse Sellers</Link>
+          <Link to="/customer-service" className="hdr-nav-link">Customer Service</Link>
+          <Link to="/registry" className="hdr-nav-link">Registry</Link>
+          <Link to="/gift-cards" className="hdr-nav-link">Gift Cards</Link>
+          <Link to="/seller/register" className="hdr-nav-link">Sell</Link>
 
-        <div className="hidden md:flex items-center gap-2 lg:gap-3 xl:gap-5 flex-wrap">
-          <Link to="/deals" className="text-white no-underline px-2 lg:px-2.5 py-1 text-xs lg:text-sm border border-transparent rounded hover:border-white whitespace-nowrap">
-            Today's Deals
-          </Link>
-          <Link to="/sellers" className="text-white no-underline px-2 lg:px-2.5 py-1 text-xs lg:text-sm border border-transparent rounded hover:border-white whitespace-nowrap">
-            Browse Sellers
-          </Link>
-          <Link to="/customer-service" className="text-white no-underline px-2 lg:px-2.5 py-1 text-xs lg:text-sm border border-transparent rounded hover:border-white whitespace-nowrap">
-            Customer Service
-          </Link>
-          <Link to="/registry" className="text-white no-underline px-2 lg:px-2.5 py-1 text-xs lg:text-sm border border-transparent rounded hover:border-white whitespace-nowrap hidden lg:block">
-            Registry
-          </Link>
-          <Link to="/gift-cards" className="text-white no-underline px-2 lg:px-2.5 py-1 text-xs lg:text-sm border border-transparent rounded hover:border-white whitespace-nowrap hidden lg:block">
-            Gift Cards
-          </Link>
-          <Link to="/seller/register" className="text-white no-underline px-2 lg:px-2.5 py-1 text-xs lg:text-sm border border-transparent rounded hover:border-white whitespace-nowrap">
-            Sell
-          </Link>
-        </div>
-        
-        <div className="md:hidden flex items-center gap-1 sm:gap-2 overflow-x-auto flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          <Link to="/deals" className="text-white no-underline px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs border border-transparent rounded hover:border-white whitespace-nowrap">
-            🏷️ Deals
-          </Link>
-          <Link to="/sellers" className="text-white no-underline px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs border border-transparent rounded hover:border-white whitespace-nowrap">
-            🏪 Sellers
-          </Link>
-          <Link to="/customer-service" className="text-white no-underline px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs border border-transparent rounded hover:border-white whitespace-nowrap">
-            💬 Help
-          </Link>
-          <Link to="/seller/register" className="text-white no-underline px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs border border-transparent rounded hover:border-white whitespace-nowrap">
-            💼 Sell
-          </Link>
-        </div>
-        
-        <div className="ml-auto flex items-center gap-1 sm:gap-2 md:gap-3">
-          {!isAuthenticated && (
-            <Link 
-              to="/register" 
-              className="bg-orange-500 hover:bg-orange-600 text-white px-1.5 sm:px-2 md:px-4 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs md:text-sm font-semibold transition-colors no-underline whitespace-nowrap flex items-center gap-0.5 sm:gap-1"
-            >
-              🚀 <span className="hidden sm:inline">Sign Up</span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            {!isAuthenticated && (
+              <Link to="/register" className="hdr-nav-link" style={{ background: '#FF9900', color: '#111', fontWeight: 700, borderRadius: 20, padding: '8px 18px' }}>
+                Join Free
+              </Link>
+            )}
+            <Link to="/prime" className="hdr-nav-link" style={{ color: '#FF9900', fontWeight: 700 }}>
+              Prime
             </Link>
-          )}
-          
-          <Link to="/prime" className="text-white no-underline px-2 lg:px-2.5 py-1 text-xs lg:text-sm border border-transparent rounded hover:border-white hidden lg:block">
-            <span className="text-orange-400 font-bold">Prime</span>
-          </Link>
+          </div>
         </div>
       </nav>
 
-      {/* Mobile Navigation Menu */}
-      {showMobileNav && (
-        <div className="md:hidden bg-gray-700 border-t border-gray-600 max-h-[70vh] overflow-y-auto">
-          <div className="p-3 sm:p-4 space-y-2">
-            <div className="text-white font-bold text-sm mb-3">Shop by Category</div>
-            {categories.map((category) => (
-              <Link
-                key={category.slug}
-                to={`/category/${category.slug}`}
-                className="flex items-center gap-3 px-3 py-2.5 text-white hover:bg-gray-600 rounded text-sm no-underline"
-                onClick={() => setShowMobileNav(false)}
+      {/* ── Mobile drawer ── */}
+      <div className={`hdr-drawer${showMobileMenu ? ' open' : ''}`}>
+        <div className="hdr-drawer-inner">
+          {isAuthenticated ? (
+            <div className="hdr-drawer-user">
+              <div style={{ fontWeight: 700, fontSize: 17, color: '#fff' }}>Hello, {username}</div>
+              <div style={{ fontSize: 14, color: '#9ca3af', marginTop: 4 }}>{user?.email}</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              <Link to="/login" style={{ flex: 1, background: '#FF9900', color: '#111', fontWeight: 700, borderRadius: 4, padding: '12px 0', textAlign: 'center', fontSize: 16, textDecoration: 'none' }} onClick={() => setShowMobileMenu(false)}>Sign In</Link>
+              <Link to="/register" style={{ flex: 1, background: '#374151', color: '#fff', borderRadius: 4, padding: '12px 0', textAlign: 'center', fontSize: 16, textDecoration: 'none' }} onClick={() => setShowMobileMenu(false)}>Register</Link>
+            </div>
+          )}
+
+          <div className="hdr-section-title">Quick Links</div>
+          <Link to="/deals" className="hdr-drawer-link" onClick={() => setShowMobileMenu(false)}>🏷️&nbsp; Today's Deals</Link>
+          <Link to="/orders" className="hdr-drawer-link" onClick={() => setShowMobileMenu(false)}>📦&nbsp; Your Orders</Link>
+          {isAuthenticated && <Link to="/wishlist" className="hdr-drawer-link" onClick={() => setShowMobileMenu(false)}>♡&nbsp; Wishlist</Link>}
+          {isAuthenticated && <Link to="/account" className="hdr-drawer-link" onClick={() => setShowMobileMenu(false)}>⚙️&nbsp; Account Settings</Link>}
+          <Link to="/customer-service" className="hdr-drawer-link" onClick={() => setShowMobileMenu(false)}>💬&nbsp; Customer Service</Link>
+          <Link to="/seller/register" className="hdr-drawer-link" onClick={() => setShowMobileMenu(false)}>🏪&nbsp; Sell on FastShop</Link>
+
+          <div className="hdr-section-title">Shop by Category</div>
+          {categories.map(cat => (
+            <Link key={cat.slug} to={`/category/${cat.slug}`} className="hdr-drawer-link" onClick={() => setShowMobileMenu(false)}>
+              <span style={{ color: '#9ca3af', marginRight: 2 }}>›</span> {cat.name}
+            </Link>
+          ))}
+          <Link to="/categories" className="hdr-drawer-link" style={{ color: '#FF9900', fontWeight: 600 }} onClick={() => setShowMobileMenu(false)}>
+            See All Categories →
+          </Link>
+
+          {user?.role === 'seller' && <>
+            <div className="hdr-section-title">Seller Tools</div>
+            <Link to="/seller" className="hdr-drawer-link" style={{ color: '#FF9900' }} onClick={() => setShowMobileMenu(false)}>🏪&nbsp; Seller Central</Link>
+          </>}
+          {user?.role === 'admin' && <>
+            <div className="hdr-section-title">Admin</div>
+            <Link to="/admin" className="hdr-drawer-link" style={{ color: '#f87171' }} onClick={() => setShowMobileMenu(false)}>⚙️&nbsp; Admin Dashboard</Link>
+          </>}
+
+          {isAuthenticated && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #374151' }}>
+              <button
+                onClick={() => { handleLogout(); setShowMobileMenu(false) }}
+                style={{ width: '100%', background: 'transparent', color: '#d1d5db', border: '1px solid #4b5563', borderRadius: 4, padding: '12px 0', fontSize: 16, cursor: 'pointer' }}
               >
-                <span className="text-lg">{getCategoryEmoji(category.name)}</span>
-                <span>{category.name}</span>
-              </Link>
-            ))}
-            <hr className="border-gray-600 my-3" />
-            <div className="text-white font-bold text-sm mb-3">Quick Links</div>
-            <Link to="/deals" className="flex items-center gap-3 text-white py-2.5 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileNav(false)}>
-              <span className="text-lg">🏷️</span>
-              <span>Today's Deals</span>
-            </Link>
-            <Link to="/sellers" className="flex items-center gap-3 text-white py-2.5 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileNav(false)}>
-              <span className="text-lg">🏪</span>
-              <span>Browse Sellers</span>
-            </Link>
-            <Link to="/customer-service" className="flex items-center gap-3 text-white py-2.5 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileNav(false)}>
-              <span className="text-lg">💬</span>
-              <span>Customer Service</span>
-            </Link>
-            <Link to="/registry" className="flex items-center gap-3 text-white py-2.5 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileNav(false)}>
-              <span className="text-lg">🎁</span>
-              <span>Registry</span>
-            </Link>
-            <Link to="/gift-cards" className="flex items-center gap-3 text-white py-2.5 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileNav(false)}>
-              <span className="text-lg">💳</span>
-              <span>Gift Cards</span>
-            </Link>
-            <Link to="/seller/register" className="flex items-center gap-3 text-white py-2.5 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileNav(false)}>
-              <span className="text-lg">💼</span>
-              <span>Sell on FastShop</span>
-            </Link>
-            <Link to="/prime" className="flex items-center gap-3 text-orange-400 font-bold py-2.5 px-3 hover:bg-gray-600 rounded text-sm no-underline" onClick={() => setShowMobileNav(false)}>
-              <span className="text-lg">⭐</span>
-              <span>Prime</span>
-            </Link>
-          </div>
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </header>
   )
 }

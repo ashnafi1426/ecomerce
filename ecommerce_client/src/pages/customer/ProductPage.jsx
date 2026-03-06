@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { addToCart } from '../../store/slices/cartSlice'
@@ -29,6 +29,17 @@ const ProductPage = () => {
   // Wishlist state
   const [isInWishlist, setIsInWishlist] = useState(false)
   const [wishlistLoading, setWishlistLoading] = useState(false)
+
+  // Animation state
+  const [imgKey, setImgKey] = useState(0)          // triggers fade on image switch
+  const [cartBtnClass, setCartBtnClass] = useState('')
+  const [heartClass, setHeartClass] = useState('')
+  const [pageReady, setPageReady] = useState(false)
+
+  // 3D image tilt state
+  const imgRef = useRef(null)
+  const [tilt, setTilt] = useState({ x: 0, y: 0 })
+  const [isImgHovering, setIsImgHovering] = useState(false)
 
   // Variant state
   const [variants, setVariants] = useState([])
@@ -78,6 +89,8 @@ const ProductPage = () => {
       setProduct(normalizedProduct)
       setStockStatus(normalizedProduct.stock_status)
       setAvailableQuantity(normalizedProduct.available_quantity)
+      // Trigger reveal animation after data loads
+      setTimeout(() => setPageReady(true), 50)
       
       // Safely parse badges
       let parsedBadges = []
@@ -228,6 +241,8 @@ const ProductPage = () => {
     }
     
     setAddingToCart(true)
+    setCartBtnClass('pdp-btn-adding')
+    setTimeout(() => setCartBtnClass(''), 400)
     
     try {
       // Add to cart with inventory locking
@@ -312,6 +327,8 @@ const ProductPage = () => {
       
       setWishlistLoading(true)
       
+      setHeartClass('pdp-heart-bounce')
+      setTimeout(() => setHeartClass(''), 600)
       if (isInWishlist) {
         await api.delete(`/wishlist/${id}`)
         setIsInWishlist(false)
@@ -329,14 +346,48 @@ const ProductPage = () => {
     }
   }
 
+  const handleImgMouseMove = (e) => {
+    if (!imgRef.current) return
+    const rect = imgRef.current.getBoundingClientRect()
+    const x = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2)
+    const y = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2)
+    setTilt({ x: -x * 10, y: y * 10 })
+  }
+
   // Loading State
   if (loading) {
     return (
       <div className="bg-white min-h-screen">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF9900] mx-auto"></div>
-            <p className="mt-4 text-[#565959]">Loading product...</p>
+        <div className="max-w-[1500px] mx-auto px-5 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Image skeleton */}
+            <div className="lg:col-span-5 flex gap-4">
+              <div className="flex flex-col gap-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="pdp-shimmer w-16 h-16 rounded"></div>
+                ))}
+              </div>
+              <div className="pdp-shimmer flex-1 h-[500px] rounded-lg"></div>
+            </div>
+            {/* Info skeleton */}
+            <div className="lg:col-span-4 space-y-4 pt-2">
+              <div className="pdp-shimmer h-7 rounded w-3/4"></div>
+              <div className="pdp-shimmer h-5 rounded w-1/2"></div>
+              <div className="pdp-shimmer h-10 rounded w-1/3"></div>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="pdp-shimmer h-4 rounded" style={{ width: `${70 + i * 5}%` }}></div>
+              ))}
+            </div>
+            {/* Buy box skeleton */}
+            <div className="lg:col-span-3">
+              <div className="border border-[#D5D9D9] rounded-lg p-5 space-y-4">
+                <div className="pdp-shimmer h-10 rounded w-1/2"></div>
+                <div className="pdp-shimmer h-20 rounded"></div>
+                <div className="pdp-shimmer h-12 rounded"></div>
+                <div className="pdp-shimmer h-12 rounded"></div>
+                <div className="pdp-shimmer h-12 rounded"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -421,6 +472,164 @@ const ProductPage = () => {
 
   return (
     <div className="bg-white min-h-screen">
+      {/* ── PDP Animation Styles ── */}
+      <style>{`
+        /* ═══════════════════════════════════════════════════
+           PRODUCT PAGE — AMAZON-STYLE 3D ANIMATION SYSTEM
+           ═══════════════════════════════════════════════════ */
+
+        /* ── 3D image flip on thumbnail switch ── */
+        @keyframes pdpImg3DFlip {
+          from { opacity: 0; transform: perspective(700px) rotateY(-40deg) scale(0.95); }
+          to   { opacity: 1; transform: perspective(700px) rotateY(0deg)   scale(1);    }
+        }
+        .pdp-img-3d-flip { animation: pdpImg3DFlip 0.44s cubic-bezier(0.23,1,0.32,1) both; }
+
+        /* ── Legacy fade (kept for backward compat) ── */
+        @keyframes pdpImgFade {
+          from { opacity: 0; transform: scale(0.97); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        .pdp-img-fade { animation: pdpImgFade 0.35s ease both; }
+
+        /* ── Staggered 3D perspective section reveal ── */
+        @keyframes pdpReveal3D {
+          from { opacity: 0; transform: perspective(1200px) rotateX(12deg) translateY(30px); }
+          to   { opacity: 1; transform: perspective(1200px) rotateX(0deg)  translateY(0px);  }
+        }
+        .pdp-reveal-ready.pdp-s0 { animation: pdpReveal3D 0.6s ease 0s    both; }
+        .pdp-reveal-ready.pdp-s1 { animation: pdpReveal3D 0.6s ease 0.12s both; }
+        .pdp-reveal-ready.pdp-s2 { animation: pdpReveal3D 0.6s ease 0.25s both; }
+        .pdp-reveal-ready.pdp-s3 { animation: pdpReveal3D 0.6s ease 0.4s  both; }
+
+        /* ── Wishlist heart bounce ── */
+        @keyframes pdpHeartBounce {
+          0%  { transform: scale(1); }
+          30% { transform: scale(1.5) rotate(-10deg); }
+          60% { transform: scale(0.85) rotate(5deg); }
+          80% { transform: scale(1.15); }
+          100%{ transform: scale(1); }
+        }
+        .pdp-heart-bounce { animation: pdpHeartBounce 0.55s ease; }
+
+        /* ── Add-to-cart button press ── */
+        @keyframes pdpBtnPress {
+          0%   { transform: scale(1); }
+          40%  { transform: scale(0.94); }
+          100% { transform: scale(1); }
+        }
+        .pdp-btn-adding { animation: pdpBtnPress 0.35s ease; }
+
+        /* ── Thumbnail: 3D depth on hover ── */
+        .pdp-thumb {
+          transition: transform 0.22s ease, border-color 0.2s ease, box-shadow 0.22s ease;
+          transform-style: preserve-3d;
+        }
+        .pdp-thumb:hover {
+          transform: perspective(300px) translateZ(12px) scale(1.06);
+          box-shadow: 0 0 0 2px #FF9900, 0 8px 20px rgba(0,0,0,0.18);
+        }
+        .pdp-thumb-active {
+          transform: perspective(300px) translateZ(6px) scale(1.03);
+          box-shadow: 0 0 0 3px #FF9900, 0 4px 14px rgba(0,0,0,0.12);
+        }
+
+        /* ── Main 3D image container ── */
+        .pdp-main-3d {
+          transform-style: preserve-3d;
+          will-change: transform;
+          border-radius: 12px;
+        }
+
+        /* ── Glass shine overlay that intensifies with tilt ── */
+        .pdp-img-shine {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            135deg,
+            rgba(255,255,255,0.22) 0%,
+            rgba(255,255,255,0.06) 30%,
+            transparent 50%,
+            rgba(0,0,0,0.04) 100%
+          );
+          pointer-events: none;
+          z-index: 3;
+          border-radius: inherit;
+          transition: opacity 0.3s ease;
+        }
+
+        /* ── Floating badge pulse ── */
+        @keyframes pdpBadgeFloat {
+          0%, 100% { transform: translateY(0px);  }
+          50%       { transform: translateY(-5px); }
+        }
+        .pdp-badge-float {
+          animation: pdpBadgeFloat 2.8s ease-in-out infinite;
+          display: inline-block;
+        }
+
+        /* ── Button lift on hover ── */
+        .pdp-btn-lift {
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .pdp-btn-lift:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+        }
+        .pdp-btn-lift:active:not(:disabled) { transform: translateY(0); }
+
+        /* ── Rating bar animated fill ── */
+        .pdp-bar-fill {
+          transition: width 1.1s cubic-bezier(0.23, 1, 0.32, 1) 0.4s;
+        }
+
+        /* ── Shimmer loading skeleton ── */
+        @keyframes pdpShimmer {
+          0%   { background-position: -600px 0; }
+          100% { background-position:  600px 0; }
+        }
+        .pdp-shimmer {
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 600px 100%;
+          animation: pdpShimmer 1.4s infinite linear;
+        }
+
+        /* ── Star micro-interaction ── */
+        @keyframes pdpStarPop {
+          0%   { transform: scale(1); }
+          50%  { transform: scale(1.35) rotate(12deg); }
+          100% { transform: scale(1); }
+        }
+        .pdp-star:hover { animation: pdpStarPop 0.35s ease; display:inline-block; }
+
+        /* ── Review card 3D tilt on hover ── */
+        .pdp-review-card {
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+          transform-style: preserve-3d;
+        }
+        .pdp-review-card:hover {
+          transform: perspective(900px) rotateX(-2deg) translateY(-3px);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+        }
+
+        /* ── Buy box: 3D floating card ── */
+        .pdp-buybox {
+          transition: transform 0.35s ease, box-shadow 0.35s ease;
+          transform-style: preserve-3d;
+        }
+        .pdp-buybox:hover {
+          transform: perspective(1000px) translateZ(16px) translateY(-5px);
+          box-shadow: 0 28px 60px rgba(0,0,0,0.14), 0 10px 24px rgba(0,0,0,0.08);
+        }
+
+        /* ── Mobile: reduce heavy 3D to save battery ── */
+        @media (max-width: 768px) {
+          .pdp-main-3d { will-change: auto; }
+          .pdp-buybox:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+          .pdp-review-card:hover { transform: translateY(-2px); }
+        }
+      `}</style>
+
       {/* Breadcrumb */}
       <div className="border-b border-[#D5D9D9]">
         <div className="max-w-[1500px] mx-auto px-5 py-4 text-sm">
@@ -438,17 +647,16 @@ const ProductPage = () => {
       <div className="max-w-[1500px] mx-auto px-5 py-5">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Image Gallery - 5 columns */}
-          <div className="lg:col-span-5">
+          <div className={`lg:col-span-5 pdp-s0 ${pageReady ? 'pdp-reveal-ready' : 'opacity-0'}`}>
             <div className="flex gap-4">
               {/* Thumbnails */}
               <div className="flex flex-col gap-2">
                 {images.map((img, index) => (
                   <div
                     key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`w-16 h-16 border-2 rounded cursor-pointer flex items-center justify-center ${
-                      selectedImage === index ? 'border-[#FF9900]' : 'border-[#D5D9D9]'
-                    } hover:border-[#FF9900] transition-colors`}
+                    onClick={() => { setSelectedImage(index); setImgKey(k => k + 1) }}
+                    className={`pdp-thumb w-16 h-16 border-2 rounded cursor-pointer flex items-center justify-center ${selectedImage === index ? 'pdp-thumb-active border-[#FF9900]' : 'border-[#D5D9D9]'
+                      }`}
                   >
                     {img && img.startsWith('http') ? (
                       <img 
@@ -471,25 +679,40 @@ const ProductPage = () => {
               
               {/* Main Image */}
               <div className="flex-1">
-                <div className="border border-[#D5D9D9] rounded-lg overflow-hidden relative">
+                <div
+                  ref={imgRef}
+                  className="pdp-main-3d border border-[#D5D9D9] rounded-xl overflow-hidden relative cursor-zoom-in"
+                  onMouseMove={handleImgMouseMove}
+                  onMouseEnter={() => setIsImgHovering(true)}
+                  onMouseLeave={() => { setIsImgHovering(false); setTilt({ x: 0, y: 0 }) }}
+                  style={{
+                    transform: isImgHovering
+                      ? `perspective(800px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale3d(1.03,1.03,1.03)`
+                      : 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1,1,1)',
+                    transition: isImgHovering ? 'transform 0.08s linear' : 'transform 0.65s cubic-bezier(0.23,1,0.32,1)',
+                  }}
+                >
+                  {/* Glass shine overlay — moves with tilt */}
+                  <div className="pdp-img-shine" style={{ opacity: isImgHovering ? 1 : 0 }} />
                   {/* Badges Overlay */}
                   {badges && badges.length > 0 && (
                     <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-                      {badges.slice(0, 2).map((badge, idx) => badge && <span key={idx}>{renderBadge(badge)}</span>)}
+                      {badges.slice(0, 2).map((badge, idx) => badge && <span key={idx} className="pdp-badge-float">{renderBadge(badge)}</span>)}
                     </div>
                   )}
                   {images[selectedImage] && images[selectedImage].startsWith('http') ? (
                     <img
+                      key={imgKey}
                       src={images[selectedImage]}
                       alt={product.name}
-                      className="w-full h-[500px] object-contain"
+                      className="pdp-img-3d-flip w-full h-[500px] object-contain"
                       onError={(e) => {
                         e.target.onerror = null;
                         e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="500" height="500"%3E%3Crect fill="%23f3f4f6" width="500" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="120"%3E📦%3C/text%3E%3C/svg%3E';
                       }}
                     />
                   ) : (
-                    <div className="w-full h-[500px] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-9xl">
+                      <div key={imgKey} className="pdp-img-3d-flip w-full h-[500px] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-9xl">
                       📦
                     </div>
                   )}
@@ -499,7 +722,7 @@ const ProductPage = () => {
           </div>
 
           {/* Product Info - 4 columns */}
-          <div className="lg:col-span-4">
+          <div className={`lg:col-span-4 pdp-s1 ${pageReady ? 'pdp-reveal-ready' : 'opacity-0'}`}>
             {/* Badges */}
             {badges && badges.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
@@ -645,8 +868,8 @@ const ProductPage = () => {
           </div>
 
           {/* Buy Box - 3 columns */}
-          <div className="lg:col-span-3">
-            <div className="border border-[#D5D9D9] rounded-lg p-5 sticky top-5">
+          <div className={`lg:col-span-3 pdp-s2 ${pageReady ? 'pdp-reveal-ready' : 'opacity-0'}`}>
+            <div className="pdp-buybox border border-[#D5D9D9] rounded-lg p-5 sticky top-5">
               <div className="text-3xl text-[#B12704] font-normal mb-3">${product.price.toFixed(2)}</div>
               
               {/* Delivery Info */}
@@ -693,15 +916,20 @@ const ProductPage = () => {
                   <button
                     onClick={handleAddToCart}
                     disabled={addingToCart}
-                    className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] py-3 rounded-lg font-semibold mb-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`pdp-btn-lift w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] py-3 rounded-lg font-semibold mb-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${cartBtnClass}`}
                   >
-                    {addingToCart ? 'Adding...' : 'Add to Cart'}
+                    {addingToCart ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="inline-block w-4 h-4 border-2 border-[#0F1111] border-t-transparent rounded-full animate-spin"></span>
+                        Adding...
+                      </span>
+                    ) : 'Add to Cart'}
                   </button>
                   
                   <button
                     onClick={handleBuyNow}
                     disabled={addingToCart}
-                    className="w-full bg-[#FFA41C] hover:bg-[#FF8F00] text-[#0F1111] py-3 rounded-lg font-semibold mb-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="pdp-btn-lift w-full bg-[#FFA41C] hover:bg-[#FF8F00] text-[#0F1111] py-3 rounded-lg font-semibold mb-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Buy Now
                   </button>
@@ -709,9 +937,9 @@ const ProductPage = () => {
                   <button
                     onClick={handleToggleWishlist}
                     disabled={wishlistLoading}
-                    className="w-full border-2 border-[#D5D9D9] hover:border-[#FF9900] text-[#0F1111] py-3 rounded-lg font-semibold mb-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="pdp-btn-lift w-full border-2 border-[#D5D9D9] hover:border-[#FF9900] text-[#0F1111] py-3 rounded-lg font-semibold mb-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    <span className="text-xl">{isInWishlist ? '❤️' : '🤍'}</span>
+                    <span className={`text-xl ${heartClass}`}>{isInWishlist ? '❤️' : '🤍'}</span>
                     {wishlistLoading ? 'Updating...' : isInWishlist ? 'In Wishlist' : 'Add to Wishlist'}
                   </button>
                   
@@ -754,7 +982,7 @@ const ProductPage = () => {
         </div>
 
         {/* Customer Reviews Section */}
-        <div className="mt-12" id="reviews">
+        <div className={`mt-12 pdp-s3 ${pageReady ? 'pdp-reveal-ready' : 'opacity-0'}`} id="reviews">
           <h2 className="text-3xl font-bold text-[#0F1111] mb-6">Customer Reviews</h2>
           
           {/* Review Summary */}
@@ -784,8 +1012,8 @@ const ProductPage = () => {
                     <div className="w-16 text-sm text-[#0F1111]">{stars} star</div>
                     <div className="flex-1 h-5 bg-[#D5D9D9] rounded overflow-hidden">
                       <div 
-                        className="h-full bg-[#FF9900]" 
-                        style={{ width: `${percentage}%` }}
+                        className="pdp-bar-fill h-full bg-[#FF9900] rounded"
+                        style={{ width: pageReady ? `${percentage}%` : '0%' }}
                       ></div>
                     </div>
                     <div className="w-12 text-right text-sm text-[#565959]">{percentage}%</div>
@@ -826,7 +1054,7 @@ const ProductPage = () => {
                 helpful: 189
               }
             ].map((review, index) => (
-              <div key={index} className="border-b border-[#D5D9D9] pb-6">
+              <div key={index} className="pdp-review-card border-b border-[#D5D9D9] pb-6 rounded-lg px-3 py-2 -mx-3">
                 <div className="flex items-center gap-4 mb-3">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-xl">
                     👤
@@ -849,7 +1077,7 @@ const ProductPage = () => {
                   <div className="text-[#0F1111] leading-relaxed">{review.text}</div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <button className="border border-[#D5D9D9] px-4 py-1 rounded hover:bg-[#F7F8F8] transition-colors text-[#0F1111]">
+                  <button className="pdp-btn-lift border border-[#D5D9D9] px-4 py-1 rounded hover:bg-[#F7F8F8] transition-colors text-[#0F1111]">
                     👍 Helpful
                   </button>
                   <span className="text-[#565959]">{review.helpful} people found this helpful</span>

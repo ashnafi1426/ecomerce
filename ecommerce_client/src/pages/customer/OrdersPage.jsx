@@ -600,6 +600,14 @@ const OrdersPage = () => {
                         Return Items
                       </Link>
                     )}
+                    {order.status === 'delivered' && (
+                      <Link
+                        to={`/replacements?order=${order.id}`}
+                        className="px-6 py-2 border border-orange-300 text-orange-700 rounded font-semibold hover:bg-orange-50"
+                      >
+                        🔄 Request Replacement
+                      </Link>
+                    )}
                     {order.status === 'shipped' && (
                       <button className="px-6 py-2 border border-gray-300 rounded font-semibold hover:bg-gray-50">
                         Contact Seller

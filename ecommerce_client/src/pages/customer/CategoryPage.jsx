@@ -7,81 +7,96 @@ const CategoryPage = () => {
   const { categoryId } = useParams()
   const navigate = useNavigate()
   const [products, setProducts] = useState([])
+  const [allProducts, setAllProducts] = useState([])
   const [category, setCategory] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({
-    priceMin: '',
-    priceMax: '',
-    sortBy: 'featured'
-  })
+  const [sortBy, setSortBy] = useState('featured')
+  const [selectedPricePreset, setSelectedPricePreset] = useState('')
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' })
+  const [minRating, setMinRating] = useState(0)
 
   useEffect(() => {
     fetchCategoryData()
   }, [categoryId])
 
+  // Re-apply filters when filter state changes
   useEffect(() => {
-    if (category) {
-      fetchCategoryProducts()
+    if (allProducts.length > 0) {
+      applyFilters(allProducts)
     }
-  }, [filters.sortBy, categoryId])
+  }, [selectedPricePreset, priceRange, minRating, sortBy])
 
   const fetchCategoryData = async () => {
     try {
       setLoading(true)
-      console.log('🏷️ Fetching category data for ID:', categoryId)
 
-      // Fetch category info and products
       const [categoriesRes, productsRes] = await Promise.all([
         customerAPI.getCategories(),
-        customerAPI.getCategoryProducts(categoryId, { 
-          limit: 50,
-          sort: filters.sortBy 
-        })
+        customerAPI.getCategoryProducts(categoryId, { limit: 100, sort: 'featured' })
       ])
 
-      console.log('📂 Categories response:', categoriesRes)
-      console.log('📦 Category products response:', productsRes)
-
-      // Find the specific category
+      // Find category — categoryId may be slug ("electronics") or UUID
       const categoryList = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || []
-      const foundCategory = categoryList.find(cat => cat.id == categoryId)
-      
-      if (foundCategory) {
-        setCategory(foundCategory)
-      } else {
-        setCategory({ id: categoryId, name: 'Category' })
-      }
+      const foundCategory = categoryList.find(
+        cat => cat.id === categoryId || cat.slug === categoryId || cat.name?.toLowerCase() === categoryId?.toLowerCase()
+      )
+      setCategory(foundCategory || productsRes?.category || { id: categoryId, name: categoryId })
 
-      // Set products
-      const productList = Array.isArray(productsRes) ? productsRes : productsRes?.data || []
-      setProducts(productList)
-
+      // Backend returns { products: [...] }
+      const productList = productsRes?.products || (Array.isArray(productsRes) ? productsRes : [])
+      setAllProducts(productList)
+      applyFilters(productList)
     } catch (error) {
       console.error('❌ Failed to load category data:', error)
       toast.error('Failed to load category products')
-      setCategory({ id: categoryId, name: 'Category' })
+      setCategory({ id: categoryId, name: categoryId })
+      setAllProducts([])
       setProducts([])
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchCategoryProducts = async () => {
-    try {
-      console.log('🔄 Fetching products for category:', categoryId, 'with sort:', filters.sortBy)
-      
-      const response = await customerAPI.getCategoryProducts(categoryId, { 
-        limit: 50,
-        sort: filters.sortBy 
-      })
-      
-      const productList = Array.isArray(response) ? response : response?.data || []
-      setProducts(productList)
-      
-    } catch (error) {
-      console.error('❌ Failed to load category products:', error)
-      toast.error('Failed to load products')
+  const applyFilters = (source) => {
+    let filtered = [...source]
+
+    // Price filter
+    let minPrice, maxPrice
+    if (selectedPricePreset) {
+      const [pMin, pMax] = selectedPricePreset.split('-')
+      minPrice = pMin !== '' ? parseFloat(pMin) : undefined
+      maxPrice = pMax !== '' ? parseFloat(pMax) : undefined
+    } else {
+      minPrice = priceRange.min !== '' ? parseFloat(priceRange.min) : undefined
+      maxPrice = priceRange.max !== '' ? parseFloat(priceRange.max) : undefined
     }
+    if (minPrice !== undefined) filtered = filtered.filter(p => Number(p.price) >= minPrice)
+    if (maxPrice !== undefined) filtered = filtered.filter(p => Number(p.price) <= maxPrice)
+
+    // Rating filter
+    if (minRating > 0) {
+      filtered = filtered.filter(p => (p.average_rating || 0) >= minRating)
+    }
+
+    // Sort
+    switch (sortBy) {
+      case 'price_asc':
+        filtered.sort((a, b) => Number(a.price) - Number(b.price))
+        break
+      case 'price_desc':
+        filtered.sort((a, b) => Number(b.price) - Number(a.price))
+        break
+      case 'rating':
+        filtered.sort((a, b) => (b.average_rating || 0) - (a.average_rating || 0))
+        break
+      case 'newest':
+        filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        break
+      default:
+        break
+    }
+
+    setProducts(filtered)
   }
 
   const handleProductClick = (productId) => {
@@ -149,67 +164,105 @@ const CategoryPage = () => {
       <div className="flex gap-5">
         {/* Sidebar Filters */}
         <aside className="w-64 flex-shrink-0">
+          {/* Price Filter */}
           <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
             <h3 className="text-lg font-bold mb-4">Price</h3>
             <div className="space-y-2 mb-3">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="cursor-pointer" />
-                <span className="text-sm">Under $25</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="cursor-pointer" />
-                <span className="text-sm">$25 to $50</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="cursor-pointer" />
-                <span className="text-sm">$50 to $100</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="cursor-pointer" />
-                <span className="text-sm">$100 & Above</span>
+              {[
+                { label: 'Under $25', value: '0-25' },
+                { label: '$25 to $50', value: '25-50' },
+                { label: '$50 to $100', value: '50-100' },
+                { label: '$100 to $200', value: '100-200' },
+                { label: '$200 & Above', value: '200-' },
+              ].map((preset) => (
+                <label key={preset.value} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="price"
+                    checked={selectedPricePreset === preset.value}
+                    onChange={() => { setSelectedPricePreset(preset.value); setPriceRange({ min: '', max: '' }) }}
+                    className="cursor-pointer"
+                  />
+                  <span className="text-sm">{preset.label}</span>
+                </label>
+              ))}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="price"
+                  checked={!selectedPricePreset}
+                  onChange={() => setSelectedPricePreset('')}
+                  className="cursor-pointer"
+                />
+                <span className="text-sm">Any Price</span>
               </label>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2 mt-2">
               <input
                 type="number"
                 placeholder="Min"
-                className="w-full p-2 border border-gray-300 rounded text-sm"
-                value={filters.priceMin}
-                onChange={(e) => setFilters({...filters, priceMin: e.target.value})}
+                value={priceRange.min}
+                onChange={(e) => { setPriceRange(p => ({ ...p, min: e.target.value })); setSelectedPricePreset('') }}
+                className="w-20 text-sm border border-gray-300 rounded px-2 py-1"
+                min="0"
               />
+              <span className="text-gray-400">-</span>
               <input
                 type="number"
                 placeholder="Max"
-                className="w-full p-2 border border-gray-300 rounded text-sm"
-                value={filters.priceMax}
-                onChange={(e) => setFilters({...filters, priceMax: e.target.value})}
+                value={priceRange.max}
+                onChange={(e) => { setPriceRange(p => ({ ...p, max: e.target.value })); setSelectedPricePreset('') }}
+                className="w-20 text-sm border border-gray-300 rounded px-2 py-1"
+                min="0"
               />
+              <button
+                onClick={() => applyFilters(allProducts)}
+                className="text-sm bg-orange-400 text-white px-2 py-1 rounded hover:bg-orange-500"
+              >
+                Go
+              </button>
             </div>
-            <button className="w-full mt-3 p-2 bg-orange-400 text-white rounded hover:bg-orange-500">
-              Go
-            </button>
           </div>
 
+          {/* Customer Review Filter */}
           <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
             <h3 className="text-lg font-bold mb-4">Customer Review</h3>
             <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="cursor-pointer" />
-                <span className="text-sm text-yellow-500">★★★★★</span>
-                <span className="text-sm">& Up</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="cursor-pointer" />
-                <span className="text-sm text-yellow-500">★★★★☆</span>
-                <span className="text-sm">& Up</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="cursor-pointer" />
-                <span className="text-sm text-yellow-500">★★★☆☆</span>
-                <span className="text-sm">& Up</span>
+              {[4, 3, 2, 1].map((stars) => (
+                <label key={stars} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="rating"
+                    checked={minRating === stars}
+                    onChange={() => setMinRating(stars)}
+                    className="cursor-pointer"
+                  />
+                  <span className="text-sm text-yellow-500">{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</span>
+                  <span className="text-sm">& Up</span>
+                </label>
+              ))}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="rating"
+                  checked={minRating === 0}
+                  onChange={() => setMinRating(0)}
+                  className="cursor-pointer"
+                />
+                <span className="text-sm">All Ratings</span>
               </label>
             </div>
           </div>
+
+          {/* Clear All Filters */}
+          {(selectedPricePreset || priceRange.min || priceRange.max || minRating > 0) && (
+            <button
+              onClick={() => { setSelectedPricePreset(''); setPriceRange({ min: '', max: '' }); setMinRating(0) }}
+              className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium"
+            >
+              Clear All Filters
+            </button>
+          )}
         </aside>
 
         {/* Main Content */}
@@ -218,13 +271,13 @@ const CategoryPage = () => {
             <div>
               <h1 className="text-2xl font-bold mb-1">{category?.name || 'Products'}</h1>
               <div className="text-sm text-gray-600">
-                1-{products.length} of {products.length} results
+                {products.length > 0 ? `1-${products.length} of ${products.length} results` : 'No results'}
               </div>
             </div>
             <select
               className="p-2 border border-gray-300 rounded cursor-pointer"
-              value={filters.sortBy}
-              onChange={(e) => setFilters({...filters, sortBy: e.target.value})}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
             >
               <option value="featured">Featured</option>
               <option value="price_asc">Price: Low to High</option>
@@ -282,12 +335,14 @@ const CategoryPage = () => {
             ))}
           </div>
 
-          {products.length === 0 && (
+          {products.length === 0 && !loading && (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📦</div>
               <h3 className="text-xl font-semibold mb-2">No products found</h3>
               <p className="text-gray-600">
-                No products available in this category yet. Check back soon!
+                {selectedPricePreset || priceRange.min || priceRange.max || minRating > 0
+                  ? 'No products match your filters. Try clearing the filters.'
+                  : 'No products available in this category yet. Check back soon!'}
               </p>
               <button
                 onClick={() => navigate('/')}

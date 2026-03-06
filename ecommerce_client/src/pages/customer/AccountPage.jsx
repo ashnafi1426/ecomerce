@@ -36,7 +36,13 @@ const AccountPage = () => {
       link: '/customer/payment-methods'
     },
     {
-      icon: '💬',
+      icon: '�',
+      title: 'Replacements',
+      description: 'Request or track product replacements',
+      link: '/replacements'
+    },
+    {
+      icon: '�💬',
       title: 'Contact Us',
       description: 'Contact our customer service via phone or chat',
       link: '#'

@@ -33,6 +33,7 @@ import CustomerAddressesPage from './pages/customer/CustomerAddressesPage'
 import CustomerPaymentMethodsPage from './pages/customer/CustomerPaymentMethodsPage'
 import CustomerReviewsPage from './pages/customer/CustomerReviewsPage'
 import CustomerReturnsPage from './pages/customer/CustomerReturnsPage'
+import CustomerReplacementsPage from './pages/customer/CustomerReplacementsPage'
 import CategoryPage from './pages/customer/CategoryPage'
 import SearchPage from './pages/customer/SearchPage'
 import GuestCheckoutPage from './pages/customer/GuestCheckoutPage'
@@ -69,6 +70,7 @@ import SellerDisputesPage from './pages/seller/SellerDisputesPage'
 import SellerMessagesPage from './pages/seller/SellerMessagesPage'
 import SellerProfilePage from './pages/seller/SellerProfilePage'
 import SellerSettingsPage from './pages/seller/SellerSettingsPage'
+import SellerReplacementsPage from './pages/seller/SellerReplacementsPage'
 import SellerRegisterPage from './pages/seller/SellerRegisterPage'
 
 // Admin Pages
@@ -158,12 +160,15 @@ function App() {
           <Route path="browsing-history" element={<ProtectedRoute><BrowsingHistoryPage /></ProtectedRoute>} />
           <Route path="returns" element={<ProtectedRoute><CustomerReturnsPage /></ProtectedRoute>} />
           <Route path="customer/returns" element={<ProtectedRoute><CustomerReturnsPage /></ProtectedRoute>} />
+              <Route path="replacements" element={<ProtectedRoute><CustomerReplacementsPage /></ProtectedRoute>} />
+              <Route path="customer/replacements" element={<ProtectedRoute><CustomerReplacementsPage /></ProtectedRoute>} />
           <Route path="account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
           <Route path="account/profile" element={<ProtectedRoute><CustomerProfilePage /></ProtectedRoute>} />
           <Route path="account/addresses" element={<ProtectedRoute><CustomerAddressesPage /></ProtectedRoute>} />
           <Route path="account/payment-methods" element={<ProtectedRoute><CustomerPaymentMethodsPage /></ProtectedRoute>} />
           <Route path="account/reviews" element={<ProtectedRoute><CustomerReviewsPage /></ProtectedRoute>} />
           <Route path="account/returns" element={<ProtectedRoute><CustomerReturnsPage /></ProtectedRoute>} />
+              <Route path="account/replacements" element={<ProtectedRoute><CustomerReplacementsPage /></ProtectedRoute>} />
         </Route>
 
         {/* Seller Routes */}
@@ -177,6 +182,7 @@ function App() {
           <Route path="orders" element={<SellerOrdersPageEnhanced />} />
           <Route path="shipping" element={<SellerShippingPage />} />
           <Route path="returns" element={<SellerReturnsPage />} />
+              <Route path="replacements" element={<SellerReplacementsPage />} />
           <Route path="analytics" element={<SellerAnalyticsPage />} />
           <Route path="performance" element={<SellerPerformancePage />} />
           <Route path="reviews" element={<SellerReviewsPage />} />

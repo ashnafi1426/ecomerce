@@ -518,7 +518,14 @@ export const managerAPI = {
   // Customer Feedback
   getCustomerFeedback: (params) => api.get('/manager/feedback/customers', params),
   getFeedbackDetails: (id) => api.get(`/manager/feedback/${id}`),
-  respondToFeedback: (id, data) => api.post(`/manager/feedback/${id}/respond`, data)
+  respondToFeedback: (id, data) => api.post(`/manager/feedback/${id}/respond`, data),
+
+  // Replacements
+  getReplacements: (params) => api.get('/replacements', params),
+  getReplacement: (id) => api.get(`/replacements/${id}`),
+  approveReplacement: (id) => api.put(`/replacements/${id}/approve`),
+  rejectReplacement: (id, reason) => api.put(`/replacements/${id}/reject`, { reason }),
+  getReplacementAnalytics: (params) => api.get('/replacements/analytics', params)
 };
 
 // Seller API endpoints
@@ -576,8 +583,13 @@ export const sellerAPI = {
   getShippingQueue: (params) => api.get('/seller/sub-orders', { ...params, fulfillment_status: 'pending' }),
   generateLabel: (orderId) => api.post('/seller/shipping/label', { orderId }),
   getReturns: (params) => api.get('/seller/returns', params),
-  approveReturn: (id) => api.put(`/seller/returns/${id}/approve`),
-  rejectReturn: (id, reason) => api.put(`/seller/returns/${id}/reject`, { reason }),
+  getReturnStats: () => api.get('/seller/returns/stats'),
+  authorizeReturn: (id, refundAmount) => api.post(`/seller/returns/${id}/authorize`, { refundAmount }),
+  closeReturn: (id, rejectionReason) => api.post(`/seller/returns/${id}/close`, { rejectionReason }),
+  markReturnReceived: (id) => api.post(`/seller/returns/${id}/receive`),
+  inspectReturn: (id, data) => api.post(`/seller/returns/${id}/inspect`, data),
+  issueRefund: (id) => api.post(`/seller/returns/${id}/issue-refund`),
+  retryRefund: (id) => api.post(`/seller/returns/${id}/retry-refund`),
   
   // Financial
   getPayouts: (params) => api.get('/seller/payouts', params),
@@ -594,7 +606,13 @@ export const sellerAPI = {
   replyToReview: (id, reply) => api.post(`/seller/reviews/${id}/reply`, { reply }),
   getDisputes: (params) => api.get('/seller/disputes', params),
   respondToDispute: (id, response) => api.post(`/seller/disputes/${id}/respond`, response),
-  
+
+  // Replacements
+  getReplacements: (params) => api.get('/replacements', params),
+  getReplacement: (id) => api.get(`/replacements/${id}`),
+  updateReplacementShipment: (id, data) => api.put(`/replacements/${id}/shipment`, data),
+  confirmReplacementReturn: (id) => api.put(`/replacements/${id}/confirm-return`),
+
   // Account
   getProfile: () => api.get('/seller/profile'),
   updateProfile: (data) => api.put('/seller/profile', data),
@@ -662,7 +680,15 @@ export const customerAPI = {
   getReturnsByOrder: (orderId) => api.get(`/returns/order/${orderId}`),
   createReturn: (data) => api.post('/returns', data),
   cancelReturn: (id) => api.post(`/returns/${id}/cancel`),
-  
+  updateReturnShipping: (id, data) => api.post(`/returns/${id}/shipping`, data),
+  updateReturnImages: (id, images) => api.put(`/returns/${id}/images`, { images }),
+
+  // Replacements
+  getReplacements: (params) => api.get('/replacements', params),
+  getReplacement: (id) => api.get(`/replacements/${id}`),
+  createReplacement: (data) => api.post('/replacements', data),
+  updateReplacementReturnTracking: (id, trackingNumber) => api.put(`/replacements/${id}/return-tracking`, { return_tracking_number: trackingNumber }),
+
   // Wishlist
   getWishlist: () => api.get('/wishlist'),
   getWishlistCount: () => api.get('/wishlist/count'),

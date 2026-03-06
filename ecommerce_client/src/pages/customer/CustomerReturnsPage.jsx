@@ -64,6 +64,18 @@ const CustomerReturnsPage = () => {
   const [showForm, setShowForm] = useState(!!prefilledOrderId)
   const [cancellingId, setCancellingId] = useState(null)
 
+  // Shipping form state (per return)
+  const [shippingReturnId, setShippingReturnId] = useState(null)
+  const [trackingNumber, setTrackingNumber] = useState('')
+  const [carrier, setCarrier] = useState('')
+  const [submittingShipping, setSubmittingShipping] = useState(false)
+
+  // Image upload state
+  const [imageReturnId, setImageReturnId] = useState(null)
+  const [imageUrls, setImageUrls] = useState([])
+  const [newImageUrl, setNewImageUrl] = useState('')
+  const [submittingImages, setSubmittingImages] = useState(false)
+
   // Form state
   const [orderId, setOrderId] = useState(prefilledOrderId)
   const [reason, setReason] = useState('')
@@ -168,6 +180,59 @@ const CustomerReturnsPage = () => {
     } finally {
       setCancellingId(null)
     }
+  }
+
+  const handleSubmitShipping = async (e) => {
+    e.preventDefault()
+    if (!trackingNumber.trim()) { toast.error('Please enter a tracking number'); return }
+    setSubmittingShipping(true)
+    try {
+      await customerAPI.updateReturnShipping(shippingReturnId, {
+        trackingNumber: trackingNumber.trim(),
+        carrier: carrier.trim() || null
+      })
+      toast.success('Shipping info submitted! We\'ll track your return.')
+      setShippingReturnId(null)
+      setTrackingNumber('')
+      setCarrier('')
+      await fetchReturns()
+    } catch (err) {
+      toast.error(err.message || 'Failed to update shipping info')
+    } finally {
+      setSubmittingShipping(false)
+    }
+  }
+
+  const handleAddImage = () => {
+    if (!newImageUrl.trim()) return
+    setImageUrls(prev => [...prev, newImageUrl.trim()])
+    setNewImageUrl('')
+  }
+
+  const handleRemoveImage = (idx) => {
+    setImageUrls(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleSubmitImages = async () => {
+    if (imageUrls.length === 0) { toast.error('Please add at least one image URL'); return }
+    setSubmittingImages(true)
+    try {
+      await customerAPI.updateReturnImages(imageReturnId, imageUrls)
+      toast.success('Evidence images updated')
+      setImageReturnId(null)
+      setImageUrls([])
+      await fetchReturns()
+    } catch (err) {
+      toast.error(err.message || 'Failed to update images')
+    } finally {
+      setSubmittingImages(false)
+    }
+  }
+
+  const openImageEditor = (r) => {
+    setImageReturnId(r.id)
+    setImageUrls(Array.isArray(r.images) ? [...r.images] : [])
+    setNewImageUrl('')
   }
 
   const fmtDate = (ts) => ts
@@ -300,10 +365,10 @@ const CustomerReturnsPage = () => {
               </div>
             )}
             {r.refund_status && r.refund_status !== 'pending' && (
-              <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 6, padding: '10px 14px' }}>
+              <div style={{ background: r.refund_status === 'failed' ? '#FEF2F2' : '#EFF6FF', border: `1px solid ${r.refund_status === 'failed' ? '#FCA5A5' : '#BFDBFE'}`, borderRadius: 6, padding: '10px 14px' }}>
                 <div style={{ fontSize: 11, color: '#565959', fontWeight: 600, textTransform: 'uppercase' }}>Refund Status</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#1D4ED8', textTransform: 'capitalize' }}>
-                  {r.refund_status}
+                <div style={{ fontSize: 14, fontWeight: 700, color: r.refund_status === 'failed' ? '#DC2626' : r.refund_status === 'completed' ? '#059669' : '#1D4ED8', textTransform: 'capitalize' }}>
+                  {r.refund_status === 'failed' ? 'Processing' : r.refund_status}
                 </div>
               </div>
             )}
@@ -340,6 +405,65 @@ const CustomerReturnsPage = () => {
               within 3–5 business days.
             </div>
           )}
+
+          {/* Shipping info form — appears when return is approved and no tracking yet */}
+          {r.status === 'approved' && !r.return_tracking_number && (
+            shippingReturnId === r.id ? (
+              <form onSubmit={handleSubmitShipping} style={{ background: '#EFF6FF', border: '1px solid #93C5FD', borderRadius: 6, padding: 14, marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1E40AF', marginBottom: 10 }}>
+                  📦 Enter Return Shipping Details
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <input
+                    type="text"
+                    value={trackingNumber}
+                    onChange={e => setTrackingNumber(e.target.value)}
+                    placeholder="Tracking number *"
+                    required
+                    style={{ flex: '1 1 200px', border: '1px solid #D5D9D9', borderRadius: 4, padding: '8px 12px', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                  <select
+                    value={carrier}
+                    onChange={e => setCarrier(e.target.value)}
+                    style={{ flex: '0 1 160px', border: '1px solid #D5D9D9', borderRadius: 4, padding: '8px 12px', fontSize: 13, background: 'white' }}
+                  >
+                    <option value="">Carrier (optional)</option>
+                    <option value="USPS">USPS</option>
+                    <option value="UPS">UPS</option>
+                    <option value="FedEx">FedEx</option>
+                    <option value="DHL">DHL</option>
+                    <option value="Amazon">Amazon</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="submit"
+                    disabled={submittingShipping}
+                    style={{ background: '#3B82F6', color: 'white', border: 'none', borderRadius: 4, padding: '7px 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: submittingShipping ? 0.6 : 1 }}
+                  >
+                    {submittingShipping ? 'Submitting...' : 'Submit Tracking'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShippingReturnId(null); setTrackingNumber(''); setCarrier('') }}
+                    style={{ background: 'none', border: '1px solid #D5D9D9', borderRadius: 4, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div style={{ marginBottom: 12 }}>
+                <button
+                  onClick={() => setShippingReturnId(r.id)}
+                  style={{ background: '#3B82F6', color: 'white', border: 'none', borderRadius: 4, padding: '8px 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                >
+                  📦 Add Return Shipping Info
+                </button>
+              </div>
+            )
+          )}
           {r.status === 'return_shipped' && (
             <div style={{ background: '#EFF6FF', border: '1px solid #93C5FD', borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#1E40AF', marginBottom: 12 }}>
               📦 We've received notice that you've shipped the item back.
@@ -358,7 +482,7 @@ const CustomerReturnsPage = () => {
               {r.inspection_notes && <div style={{ marginTop: 6, fontStyle: 'italic' }}>Note: {r.inspection_notes}</div>}
             </div>
           )}
-          {r.status === 'completed' && (
+          {r.status === 'completed' && r.refund_status !== 'failed' && (
             <div style={{ background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#065F46', marginBottom: 12 }}>
               💰 <strong>Refund of {fmtMoney(r.refund_amount)} has been processed!</strong>
               {r.refund_processed_at && <> on {fmtDate(r.refund_processed_at)}</>}.
@@ -368,6 +492,18 @@ const CustomerReturnsPage = () => {
                   Transaction ID: {r.refund_transaction_id}
                 </div>
               )}
+            </div>
+          )}
+          {r.status === 'completed' && r.refund_status === 'failed' && (
+            <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#991B1B', marginBottom: 12 }}>
+              ⚠️ <strong>Your return is approved but the refund is being processed.</strong>
+              <div style={{ marginTop: 4 }}>
+                The seller is working on issuing your refund of {fmtMoney(r.refund_amount)}.
+                If you don't see the refund within 5 business days, please{' '}
+                <Link to="/customer-service" style={{ color: '#007185', textDecoration: 'underline' }}>
+                  contact customer support
+                </Link>.
+              </div>
             </div>
           )}
           {r.status === 'rejected' && (
@@ -385,6 +521,89 @@ const CustomerReturnsPage = () => {
             <div style={{ background: '#F3F4F6', border: '1px solid #D1D5DB', borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#374151', marginBottom: 12 }}>
               🚫 This return request was cancelled.
             </div>
+          )}
+
+          {/* Evidence images display */}
+          {Array.isArray(r.images) && r.images.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: '#565959', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Evidence Photos</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {r.images.map((img, i) => (
+                  <a key={i} href={img} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={img}
+                      alt={`Evidence ${i + 1}`}
+                      style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #D5D9D9', cursor: 'pointer' }}
+                      onError={e => { e.target.style.display = 'none' }}
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Image editor — for pending/approved returns */}
+          {['pending', 'approved'].includes(r.status) && (
+            imageReturnId === r.id ? (
+              <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 6, padding: 14, marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#9A3412', marginBottom: 10 }}>
+                  📷 Add Evidence Images
+                </div>
+                {imageUrls.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                    {imageUrls.map((url, i) => (
+                      <div key={i} style={{ position: 'relative' }}>
+                        <img src={url} alt="" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 4, border: '1px solid #D5D9D9' }}
+                          onError={e => { e.target.src = '' ; e.target.alt = 'Invalid URL' ; e.target.style.background = '#FEE2E2' ; e.target.style.fontSize = '9px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(i)}
+                          style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: '#EF4444', color: 'white', border: 'none', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                        >x</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <input
+                    type="url"
+                    value={newImageUrl}
+                    onChange={e => setNewImageUrl(e.target.value)}
+                    placeholder="Paste image URL..."
+                    style={{ flex: 1, border: '1px solid #D5D9D9', borderRadius: 4, padding: '7px 10px', fontSize: 13, boxSizing: 'border-box' }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddImage() } }}
+                  />
+                  <button type="button" onClick={handleAddImage}
+                    style={{ background: '#F97316', color: 'white', border: 'none', borderRadius: 4, padding: '7px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >+ Add</button>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleSubmitImages}
+                    disabled={submittingImages || imageUrls.length === 0}
+                    style={{ background: '#F97316', color: 'white', border: 'none', borderRadius: 4, padding: '7px 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: submittingImages || imageUrls.length === 0 ? 0.6 : 1 }}
+                  >
+                    {submittingImages ? 'Saving...' : 'Save Images'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setImageReturnId(null); setImageUrls([]); setNewImageUrl('') }}
+                    style={{ background: 'none', border: '1px solid #D5D9D9', borderRadius: 4, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}
+                  >Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginBottom: 12 }}>
+                <button
+                  onClick={() => openImageEditor(r)}
+                  style={{ background: 'none', border: '1px solid #D5D9D9', borderRadius: 4, padding: '6px 14px', fontSize: 12, cursor: 'pointer', color: '#565959' }}
+                >
+                  📷 {Array.isArray(r.images) && r.images.length > 0 ? 'Edit Evidence Images' : 'Add Evidence Images'}
+                </button>
+              </div>
+            )
           )}
 
           {/* Timestamps row */}
