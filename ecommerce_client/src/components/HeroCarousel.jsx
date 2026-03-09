@@ -155,7 +155,7 @@ const HeroCarousel = () => {
 
   return (
     <div 
-      className="relative w-full h-96 md:h-[500px] overflow-hidden rounded-xl shadow-2xl bg-white"
+      className="relative w-full h-screen overflow-hidden rounded-xl shadow-2xl bg-white"
       ref={carouselRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -190,13 +190,13 @@ const HeroCarousel = () => {
                     Limited Time Offer
                   </span>
                 </div>
-                <h1 className="text-4xl md:text-6xl font-bold mb-4 leading-tight drop-shadow-lg">
+                <h1 className="text-5xl md:text-7xl font-bold mb-4 leading-tight drop-shadow-lg">
                   {slide.title}
                 </h1>
-                <h2 className="text-xl md:text-3xl mb-4 font-semibold drop-shadow-md">
+                <h2 className="text-2xl md:text-4xl mb-4 font-semibold drop-shadow-md">
                   {slide.subtitle}
                 </h2>
-                <p className="text-lg md:text-xl mb-8 opacity-95 drop-shadow-sm">
+                <p className="text-xl md:text-2xl mb-10 opacity-95 drop-shadow-sm">
                   {slide.description}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">

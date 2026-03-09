@@ -5,8 +5,143 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FastShop - Your Online Shopping Destination</title>
+<!-- ── Google Translate: hide toolbar, prevent body offset ── -->
+<style>
+  .goog-te-banner-frame,
+  .goog-te-banner-frame.skiptranslate,
+  #goog-gt-tt,
+  .goog-te-balloon-frame {
+    display: none !important;
+    height: 0 !important;
+  }
+
+  body {
+    top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  #google_translate_element,
+  .goog-te-gadget,
+  .goog-logo-link {
+    display: none !important;
+  }
+
+  .translated-ltr,
+  .translated-rtl {
+    margin-top: 0 !important;
+    top: 0 !important;
+  }
+</style>
+
+<!-- Initialize the hidden GT widget -->
+<script>
+  function googleTranslateElementInit() {
+    new window.google.translate.TranslateElement(
+      { pageLanguage: 'en', includedLanguages: 'en,am,om', autoDisplay: false },
+      'google_translate_element'
+    );
+  }
+  // Restore saved language on page load via cookie
+  (function () {
+    var saved = '';
+    try { saved = localStorage.getItem('fs_gt_lang') || ''; } catch (e) { }
+    if (saved && saved !== 'en') {
+      document.cookie = 'googtrans=/en/' + saved + '; path=/';
+    }
+  })();
+</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async defer></script>
+
+<!-- Block GT from changing html[lang], which triggers Chrome's native translate bar -->
+<script>
+  (function () {
+    var _origSet = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function (name, value) {
+      if (this === document.documentElement && name === 'lang' && value !== 'en') return;
+      _origSet.call(this, name, value);
+    };
+    var obs = new MutationObserver(function () {
+      if (document.documentElement.getAttribute('lang') !== 'en') {
+        _origSet.call(document.documentElement, 'lang', 'en');
+      }
+      if (document.body) document.body.style.setProperty('top', '0px', 'important');
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+    document.addEventListener('DOMContentLoaded', function () {
+      if (document.body) {
+        document.body.style.setProperty('top', '0px', 'important');
+        obs.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+      }
+    });
+  })();
+</script>
+</head>
+
+<body>
+  <div id="google_translate_element"></div>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>
+<script>
+  function googleTranslateElementInit() {
+    new window.google.translate.TranslateElement(
+      {
+        pageLanguage: 'en',
+        includedLanguages: 'en,am,om',
+        autoDisplay: false,
+        multilanguagePage: true,
+      },
+      'google_translate_element'
+    );
+  }
+  // Restore previously chosen language on page load via cookie
+  (function () {
+    var saved = '';
+    try { saved = localStorage.getItem('fs_gt_lang') || ''; } catch (e) { }
+    if (saved && saved !== 'en') {
+      document.cookie = 'googtrans=/en/' + saved + '; path=/';
+    }
+  })();
+</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async defer></script>
+<script>
+  // Block Google Translate from changing html[lang] to "am"/"om".
+  // Chrome shows "View this page in: Amharic" ONLY because GT sets html[lang].
+  // We intercept setAttribute on <html> to silently drop any lang change away from "en".
+  // GT still translates all page text — only the lang attribute is blocked.
+  (function () {
+    var _origSet = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function (name, value) {
+      if (this === document.documentElement && name === 'lang' && value !== 'en') {
+        return; // silently block — don't let GT change html[lang]
+      }
+      _origSet.call(this, name, value);
+    };
+
+    // Belt-and-suspenders: MutationObserver + body top fix
+    var obs = new MutationObserver(function () {
+      if (document.documentElement.getAttribute('lang') !== 'en') {
+        _origSet.call(document.documentElement, 'lang', 'en');
+      }
+      if (document.body) {
+        document.body.style.setProperty('top', '0px', 'important');
+      }
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+    document.addEventListener('DOMContentLoaded', function () {
+      if (document.body) {
+        document.body.style.setProperty('top', '0px', 'important');
+        obs.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+      }
+    });
+  })();
+</script>
   </head>
   <body>
+    <!-- Hidden Google Translate widget container -->
+    <div id="google_translate_element"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

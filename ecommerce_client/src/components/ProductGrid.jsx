@@ -71,6 +71,82 @@ const ProductGrid = ({ products = [], title = "Products", showFilters = false })
 
   return (
     <div className="w-full">
+      {/* ── Product Card Animation System ── */}
+      <style>{`
+        @keyframes pcReveal {
+          from { opacity:0; transform:translateY(22px) scale(0.96); }
+          to   { opacity:1; transform:translateY(0)    scale(1);    }
+        }
+        .pc-card {
+          position:relative; background:#fff; border-radius:10px;
+          border:1px solid #E3E6E6; overflow:hidden; cursor:pointer;
+          transform-style:preserve-3d;
+          transition:transform 0.32s cubic-bezier(0.23,1,0.32,1), box-shadow 0.32s ease;
+          animation:pcReveal 0.42s cubic-bezier(0.23,1,0.32,1) both;
+        }
+        .pc-card:nth-child(1)  { animation-delay:0.00s; }
+        .pc-card:nth-child(2)  { animation-delay:0.05s; }
+        .pc-card:nth-child(3)  { animation-delay:0.10s; }
+        .pc-card:nth-child(4)  { animation-delay:0.15s; }
+        .pc-card:nth-child(5)  { animation-delay:0.20s; }
+        .pc-card:nth-child(6)  { animation-delay:0.25s; }
+        .pc-card:nth-child(n+7){ animation-delay:0.28s; }
+        .pc-card:hover {
+          transform:perspective(900px) translateY(-10px) rotateX(2deg) scale(1.02);
+          box-shadow:0 24px 56px rgba(0,0,0,0.20),0 8px 20px rgba(0,0,0,0.12);
+          z-index:5;
+        }
+        .pc-card:active { transform:scale(0.97); transition-duration:0.1s; }
+        .pc-img-wrap {
+          position:relative; width:100%; aspect-ratio:1;
+          background:#f3f4f6; overflow:hidden;
+        }
+        .pc-img {
+          width:100%; height:100%; object-fit:contain; display:block;
+          transition:transform 0.52s cubic-bezier(0.23,1,0.32,1);
+        }
+        .pc-card:hover .pc-img { transform:scale(1.10); }
+        .pc-shine {
+          position:absolute; inset:0; z-index:2; pointer-events:none;
+          background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,0.65) 50%,transparent 62%);
+          transform:translateX(-120%);
+          transition:transform 0.6s ease;
+        }
+        .pc-card:hover .pc-shine { transform:translateX(120%); }
+        .pc-badge {
+          position:absolute; z-index:3;
+          padding:3px 7px; border-radius:4px;
+          font-size:0.65rem; font-weight:700; line-height:1.5;
+        }
+        .pc-quick-cart {
+          position:absolute; bottom:0; left:0; right:0; z-index:4;
+          background:#FFD814; color:#0F1111;
+          font-size:0.72rem; font-weight:600;
+          padding:8px; border:none; cursor:pointer;
+          transform:translateY(100%);
+          transition:transform 0.28s cubic-bezier(0.23,1,0.32,1), background 0.18s ease;
+        }
+        .pc-card:hover .pc-quick-cart { transform:translateY(0); }
+        .pc-quick-cart:hover { background:#F7CA00; }
+        .pc-wish {
+          position:absolute; top:8px; right:8px; z-index:3;
+          width:30px; height:30px; border-radius:50%;
+          background:rgba(255,255,255,0.9); border:none; cursor:pointer;
+          display:flex; align-items:center; justify-content:center;
+          font-size:0.85rem;
+          opacity:0; transform:scale(0.75);
+          transition:opacity 0.22s ease, transform 0.22s cubic-bezier(0.23,1,0.32,1);
+        }
+        .pc-card:hover .pc-wish { opacity:1; transform:scale(1); }
+        .pc-wish:hover { transform:scale(1.2) !important; background:#fff !important; }
+        .pc-price { transition:color 0.2s ease; }
+        .pc-card:hover .pc-price { color:#C45500 !important; }
+        .pc-title { transition:color 0.18s ease; }
+        .pc-card:hover .pc-title { color:#C7511F; }
+        @media (max-width:768px) {
+          .pc-card:hover { transform:translateY(-4px) scale(1.01); box-shadow:0 10px 28px rgba(0,0,0,0.14); }
+        }
+      `}</style>
       {/* Header with Title and Filters */}
       <div className="responsive-flex-col justify-between items-start md:items-center mb-6 responsive-gap">
         <div>
@@ -117,98 +193,63 @@ const ProductGrid = ({ products = [], title = "Products", showFilters = false })
           <p className="text-gray-600">Try adjusting your search or filters</p>
         </div>
       ) : (
-        <div className="responsive-product-grid">{products.map((product) => {
+          <div className="responsive-product-grid">
+            {products.map((product) => {
             const discount = calculateDiscount(product.price, product.original_price);
             const rating = product.average_rating || product.rating || 0;
             const reviewCount = product.total_reviews || product.reviews_count || 0;
-
             return (
               <div
                 key={product.id}
                 onClick={() => handleProductClick(product.id)}
-                className="group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-1"
+                className="pc-card"
               >
-                {/* Product Image */}
-                <div className="relative aspect-square overflow-hidden bg-gray-100">
+                {/* Image Zone */}
+                <div className="pc-img-wrap">
                   {product.image_url ? (
                     <img
                       src={product.image_url}
                       alt={product.title || product.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="pc-img"
+                      loading="lazy"
+                      onError={(e) => { e.target.onerror = null; e.target.style.opacity = '0'; }}
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-6xl">
+                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-5xl">
                       📦
                     </div>
                   )}
-
-                  {/* Discount Badge */}
+                  {/* Glass shine */}
+                  <div className="pc-shine" />
+                  {/* Discount badge */}
                   {discount && (
-                    <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                      -{discount}%
-                    </div>
+                    <div className="pc-badge bg-[#CC0C39] text-white" style={{ top: '8px', left: '8px' }}>-{discount}%</div>
                   )}
-
-                  {/* Wishlist Button */}
-                  <button
-                    onClick={(e) => handleAddToWishlist(e, product)}
-                    className="absolute top-3 right-3 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110"
-                  >
-                    <svg className="w-4 h-4 text-gray-600 hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </button>
-
-                  {/* Quick Add to Cart */}
-                  <button
-                    onClick={(e) => handleAddToCart(e, product)}
-                    className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0"
-                  >
-                    Add to Cart
-                  </button>
+                  {/* Wishlist */}
+                  <button className="pc-wish" onClick={(e) => handleAddToWishlist(e, product)} title="Add to wishlist">🤍</button>
+                  {/* Quick cart */}
+                  <button className="pc-quick-cart" onClick={(e) => handleAddToCart(e, product)}>🛒 Add to Cart</button>
                 </div>
 
-                {/* Product Info */}
-                <div className="p-4">
-                  {/* Product Title */}
-                  <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                {/* Info */}
+                <div className="p-3">
+                  <h3 className="pc-title text-sm leading-tight mb-2 line-clamp-2 text-[#0F1111] font-medium">
                     {product.title || product.name}
                   </h3>
-
-                  {/* Rating */}
-                  <div className="flex items-center gap-2 mb-2">
-                    {renderStars(rating)}
-                    <span className="text-sm text-gray-600">
-                      ({reviewCount})
-                    </span>
+                  <div className="flex items-center gap-1 mb-1.5">
+                    <span className="text-[#FF9900] text-xs">{renderStars(rating)}</span>
+                    <span className="text-xs text-[#007185]">({reviewCount})</span>
                   </div>
-
-                  {/* Price */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg font-bold text-blue-600">
-                      {formatPrice(product.price)}
-                    </span>
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="pc-price text-sm font-bold text-[#B12704]">{formatPrice(product.price)}</span>
                     {product.original_price && product.original_price > product.price && (
-                      <span className="text-sm text-gray-500 line-through">
-                        {formatPrice(product.original_price)}
-                      </span>
+                      <span className="text-xs text-[#565959] line-through">{formatPrice(product.original_price)}</span>
                     )}
                   </div>
-
-                  {/* Seller Info */}
                   {(product.seller_name || product.seller?.display_name) && (
-                    <p className="text-xs text-gray-500 mb-2">
-                      by {product.seller_name || product.seller?.display_name}
-                    </p>
+                    <p className="text-xs text-[#565959] mb-1">by {product.seller_name || product.seller?.display_name}</p>
                   )}
-
-                  {/* Shipping Info */}
-                  <div className="flex items-center gap-1 text-xs text-green-600">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Free shipping</span>
-                  </div>
+                  <div className="text-[11px] text-[#067D62] font-medium">✓ FREE Delivery</div>
                 </div>
               </div>
             );

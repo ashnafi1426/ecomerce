@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppDispatch } from '../../hooks/redux'
 import { login } from '../../store/slices/authSlice'
 import { toast } from 'react-hot-toast'
 
 const LoginPage = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/'
   const dispatch = useAppDispatch()
   const [formData, setFormData] = useState({
     email: '',
@@ -66,8 +68,9 @@ const LoginPage = () => {
           console.log('Redirecting to manager dashboard')
           navigate('/manager', { replace: true })
         } else {
-          console.log('Redirecting to home (role:', userRole, ')')
-          navigate('/', { replace: true })
+          // Customer: go back to where they came from (e.g. product page)
+          console.log('Redirecting customer to:', redirectTo)
+          navigate(redirectTo, { replace: true })
         }
       }, 100)
       

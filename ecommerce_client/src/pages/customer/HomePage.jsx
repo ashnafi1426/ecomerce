@@ -92,6 +92,51 @@ const HomePage = () => {
     return Math.round(((originalPrice - price) / originalPrice) * 100);
   };
 
+  // ── Shared animated product card renderer ──
+  const renderProductCard = (product, { showDiscount = false, rank = null, badge = null } = {}) => {
+    const discount = showDiscount ? calculateDiscount(product.price, product.original_price) : null;
+    const name = product.title || product.name;
+    const rating = product.average_rating || product.rating || 0;
+    const reviews = product.total_reviews || product.reviews_count || 0;
+    return (
+      <div key={product.id} className="pc-card" onClick={() => handleProductClick(product.id)}>
+        {/* Image Zone */}
+        <div className="pc-img-wrap">
+          {product.image_url?.startsWith('http') ? (
+            <img
+              src={product.image_url}
+              alt={name}
+              className="pc-img"
+              loading="lazy"
+              onError={(e) => { e.target.onerror = null; e.target.style.opacity = '0'; }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-5xl">📦</div>
+          )}
+          <div className="pc-shine" />
+          {discount && <div className="pc-badge bg-[#CC0C39] text-white" style={{ top: '8px', left: '8px' }}>-{discount}%</div>}
+          {rank && <div className="pc-badge bg-[#FF9900] text-[#0F1111]" style={{ top: '8px', left: '8px' }}>#{rank}</div>}
+          {badge === 'new' && <div className="pc-badge bg-[#067D62] text-white" style={{ top: '8px', right: '8px' }}>NEW</div>}
+          {badge === 'hot' && <div className="pc-badge bg-[#B12704] text-white" style={{ top: '8px', left: '8px' }}>🔥 HOT</div>}
+          <button className="pc-quick-cart" onClick={(e) => { e.stopPropagation(); }}>🛒 Add to Cart</button>
+        </div>
+        {/* Info */}
+        <div className="p-2 sm:p-3">
+          <div className="pc-title text-[11px] sm:text-xs md:text-sm leading-tight mb-1.5 line-clamp-2 text-[#0F1111] font-medium h-8 sm:h-9">{name}</div>
+          <div className="pc-price text-sm sm:text-base font-bold text-[#B12704] mb-0.5">${Number(product.price).toFixed(2)}</div>
+          {product.original_price > product.price && (
+            <div className="text-[10px] sm:text-xs text-[#565959] line-through mb-1">${Number(product.original_price).toFixed(2)}</div>
+          )}
+          <div className="flex items-center gap-1 text-[10px] sm:text-xs text-[#FF9900]">
+            <span>{renderStars(rating)}</span>
+            <span className="text-[#007185]">({reviews})</span>
+          </div>
+          <div className="text-[10px] text-[#067D62] mt-1 font-medium">✓ FREE Delivery</div>
+        </div>
+      </div>
+    );
+  };
+
   // Create dynamic carousel slides based on available categories (using useMemo to avoid re-creation)
   const carouselSlides = React.useMemo(() => {
     if (categories.length === 0) {
@@ -393,9 +438,74 @@ const HomePage = () => {
 
   return (
     <div className="font-sans text-gray-900 leading-normal bg-gray-100 min-h-screen" style={{ margin: 0, padding: 0 }}>
+      {/* ── Product Card Animations ── */}
+      <style>{`
+        @keyframes pcReveal {
+          from { opacity:0; transform:translateY(22px) scale(0.96); }
+          to   { opacity:1; transform:translateY(0)    scale(1);    }
+        }
+        .pc-card {
+          position:relative; background:#fff; border-radius:8px;
+          border:1px solid #E3E6E6; overflow:hidden; cursor:pointer;
+          transform-style:preserve-3d;
+          transition:transform 0.32s cubic-bezier(0.23,1,0.32,1),box-shadow 0.32s ease;
+          animation:pcReveal 0.42s cubic-bezier(0.23,1,0.32,1) both;
+        }
+        .pc-card:nth-child(1)  { animation-delay:0.00s; }
+        .pc-card:nth-child(2)  { animation-delay:0.05s; }
+        .pc-card:nth-child(3)  { animation-delay:0.10s; }
+        .pc-card:nth-child(4)  { animation-delay:0.15s; }
+        .pc-card:nth-child(5)  { animation-delay:0.20s; }
+        .pc-card:nth-child(6)  { animation-delay:0.25s; }
+        .pc-card:nth-child(n+7){ animation-delay:0.28s; }
+        .pc-card:hover {
+          transform:perspective(900px) translateY(-10px) rotateX(2deg) scale(1.02);
+          box-shadow:0 24px 56px rgba(0,0,0,0.20),0 8px 20px rgba(0,0,0,0.12);
+          z-index:5;
+        }
+        .pc-card:active { transform:scale(0.97); transition-duration:0.1s; }
+        .pc-img-wrap {
+          position:relative; width:100%; aspect-ratio:1;
+          background:#f3f4f6; overflow:hidden;
+        }
+        .pc-img {
+          width:100%; height:100%; object-fit:contain; display:block;
+          transition:transform 0.52s cubic-bezier(0.23,1,0.32,1);
+        }
+        .pc-card:hover .pc-img { transform:scale(1.10); }
+        .pc-shine {
+          position:absolute; inset:0; z-index:2; pointer-events:none;
+          background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,0.65) 50%,transparent 62%);
+          transform:translateX(-120%);
+          transition:transform 0.6s ease;
+        }
+        .pc-card:hover .pc-shine { transform:translateX(120%); }
+        .pc-badge {
+          position:absolute; z-index:3;
+          padding:2px 6px; border-radius:4px;
+          font-size:0.62rem; font-weight:700; line-height:1.5;
+        }
+        .pc-quick-cart {
+          position:absolute; bottom:0; left:0; right:0; z-index:4;
+          background:#FFD814; color:#0F1111;
+          font-size:0.7rem; font-weight:600;
+          padding:7px 8px; border:none; cursor:pointer;
+          transform:translateY(100%);
+          transition:transform 0.28s cubic-bezier(0.23,1,0.32,1),background 0.18s ease;
+        }
+        .pc-card:hover .pc-quick-cart { transform:translateY(0); }
+        .pc-quick-cart:hover { background:#F7CA00; }
+        .pc-price { transition:color 0.2s ease; }
+        .pc-card:hover .pc-price { color:#C45500 !important; }
+        .pc-title { transition:color 0.18s ease; }
+        .pc-card:hover .pc-title { color:#C7511F; }
+        @media (max-width:768px) {
+          .pc-card:hover { transform:translateY(-4px) scale(1.01); box-shadow:0 10px 28px rgba(0,0,0,0.14); }
+        }
+      `}</style>
       
       {/* AMAZON-STYLE HERO CAROUSEL - FULL WIDTH EDGE-TO-EDGE */}
-      <section className="relative h-64 sm:h-80 md:h-96 lg:h-[500px] overflow-hidden mb-0 bg-gray-800" style={{ marginLeft: 0, marginRight: 0, paddingLeft: 0, paddingRight: 0, marginBottom: 0 }}>
+      <section className="relative h-[70vh] overflow-hidden mb-0 bg-gray-800" style={{ marginLeft: 0, marginRight: 0, paddingLeft: 0, paddingRight: 0, marginBottom: 0 }}>
         {carouselSlides.map((slide, index) => (
           <div
             key={slide.id}
@@ -601,66 +711,7 @@ const HomePage = () => {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-lg shadow-md" style={{ border: '1px solid #E3E6E6' }}>
-                  {todaysDeals.slice(0, visibleDeals).map((product) => {
-                    const discount = calculateDiscount(product.price, product.original_price);
-                    return (
-                      <div
-                        key={product.id}
-                        onClick={() => handleProductClick(product.id)}
-                        className="cursor-pointer transition-all duration-200 p-2 sm:p-3 rounded relative active:bg-gray-50 hover:shadow-lg border border-gray-100"
-                      >
-                        {/* PRODUCT IMAGE - Mobile-First with aspect-square */}
-                        <div className="w-full aspect-square bg-gradient-to-br from-purple-400 to-pink-600 rounded flex items-center justify-center mb-2 overflow-hidden relative">
-                          {product.image_url && product.image_url.startsWith('http') ? (
-                            <img
-                              src={product.image_url}
-                              alt={product.title || product.name}
-                              className="w-full h-full object-contain"
-                              loading="lazy"
-                              style={{ maxWidth: '100%', maxHeight: '100%' }}
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                const fallback = document.createElement('div');
-                                fallback.className = 'text-3xl sm:text-4xl md:text-5xl';
-                                fallback.textContent = '📦';
-                                e.target.parentElement.appendChild(fallback);
-                              }}
-                            />
-                          ) : (
-                            <div className="text-3xl sm:text-4xl md:text-5xl">📦</div>
-                          )}
-                          {discount && (
-                            <div className="absolute top-1 left-1 bg-red-700 text-white px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold">
-                              -{discount}%
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* PRODUCT TITLE - Mobile Optimized */}
-                        <div className="text-[11px] sm:text-xs md:text-sm leading-tight mb-2 h-8 sm:h-9 overflow-hidden line-clamp-2 text-gray-900">
-                          {product.title || product.name}
-                        </div>
-                        
-                        {/* PRICE - Bold and Clear with Block Display */}
-                        <div className="mb-1">
-                          <div className="text-sm sm:text-base md:text-lg font-bold text-red-700">
-                            ${Number(product.price).toFixed(2)}
-                          </div>
-                          {product.original_price && (
-                            <div className="text-[10px] sm:text-xs text-gray-500 line-through mt-0.5">
-                              ${Number(product.original_price).toFixed(2)}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* RATING - Separate Row on Mobile */}
-                        <div className="flex items-center gap-1 text-[10px] sm:text-xs text-yellow-500">
-                          {renderStars(product.average_rating || product.rating)}
-                          <span className="text-blue-600">({product.total_reviews || product.reviews_count || 0})</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                    {todaysDeals.slice(0, visibleDeals).map((product) => renderProductCard(product, { showDiscount: true }))}
                 </div>
                 {visibleDeals < todaysDeals.length && (
                   <div style={{ textAlign: 'center', marginTop: '20px' }}>
@@ -704,53 +755,7 @@ const HomePage = () => {
                   </h2>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-lg shadow-md" style={{ border: '1px solid #E3E6E6' }}>
-                  {featuredProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      onClick={() => handleProductClick(product.id)}
-                      className="cursor-pointer transition-all duration-200 p-2 sm:p-3 rounded relative active:bg-gray-50 hover:shadow-lg border border-gray-100"
-                    >
-                      {/* PRODUCT IMAGE - Mobile-First with aspect-square */}
-                      <div className="w-full aspect-square bg-gradient-to-br from-indigo-500 to-purple-600 rounded flex items-center justify-center mb-2 overflow-hidden">
-                        {product.image_url && product.image_url.startsWith('http') ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.title || product.name}
-                            className="w-full h-full object-contain"
-                            loading="lazy"
-                            style={{ maxWidth: '100%', maxHeight: '100%' }}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              const fallback = document.createElement('div');
-                              fallback.className = 'text-3xl sm:text-4xl md:text-5xl';
-                              fallback.textContent = '📦';
-                              e.target.parentElement.appendChild(fallback);
-                            }}
-                          />
-                        ) : (
-                          <div className="text-3xl sm:text-4xl md:text-5xl">📦</div>
-                        )}
-                      </div>
-                      
-                      {/* PRODUCT TITLE - Mobile Optimized */}
-                      <div className="text-[11px] sm:text-xs md:text-sm leading-tight mb-2 h-8 sm:h-9 overflow-hidden line-clamp-2 text-gray-900">
-                        {product.title || product.name}
-                      </div>
-                      
-                      {/* PRICE - Bold and Clear with Block Display */}
-                      <div className="mb-1">
-                        <div className="text-sm sm:text-base md:text-lg font-bold text-red-700">
-                          ${Number(product.price).toFixed(2)}
-                        </div>
-                      </div>
-                      
-                      {/* RATING - Separate Row on Mobile */}
-                      <div className="flex items-center gap-1 text-[10px] sm:text-xs text-yellow-500">
-                        {renderStars(product.average_rating || product.rating)}
-                        <span className="text-blue-600">({product.total_reviews || product.reviews_count || 0})</span>
-                      </div>
-                    </div>
-                  ))}
+                    {featuredProducts.map((product) => renderProductCard(product))}
                 </div>
                 </div>
               </section>
@@ -766,58 +771,7 @@ const HomePage = () => {
                   </h2>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-lg shadow-md" style={{ border: '1px solid #E3E6E6' }}>
-                  {bestSellers.slice(0, visibleBestSellers).map((product, index) => (
-                    <div
-                      key={product.id}
-                      onClick={() => handleProductClick(product.id)}
-                      className="cursor-pointer transition-all duration-200 p-2 sm:p-3 rounded relative active:bg-gray-50 hover:shadow-lg border border-gray-100"
-                    >
-                      {/* RANK BADGE */}
-                      <div className="absolute top-1 left-1 bg-yellow-500 text-gray-900 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold z-10">
-                        #{index + 1}
-                      </div>
-                      
-                      {/* PRODUCT IMAGE - Mobile-First with aspect-square */}
-                      <div className="w-full aspect-square bg-gradient-to-br from-blue-400 to-cyan-400 rounded flex items-center justify-center mb-2 overflow-hidden">
-                        {product.image_url && product.image_url.startsWith('http') ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.title || product.name}
-                            className="w-full h-full object-contain"
-                            loading="lazy"
-                            style={{ maxWidth: '100%', maxHeight: '100%' }}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              const fallback = document.createElement('div');
-                              fallback.className = 'text-3xl sm:text-4xl md:text-5xl';
-                              fallback.textContent = '📦';
-                              e.target.parentElement.appendChild(fallback);
-                            }}
-                          />
-                        ) : (
-                          <div className="text-3xl sm:text-4xl md:text-5xl">📦</div>
-                        )}
-                      </div>
-                      
-                      {/* PRODUCT TITLE - Mobile Optimized */}
-                      <div className="text-[11px] sm:text-xs md:text-sm leading-tight mb-2 h-8 sm:h-9 overflow-hidden line-clamp-2 text-gray-900">
-                        {product.title || product.name}
-                      </div>
-                      
-                      {/* PRICE - Bold and Clear with Block Display */}
-                      <div className="mb-1">
-                        <div className="text-sm sm:text-base md:text-lg font-bold text-red-700">
-                          ${Number(product.price).toFixed(2)}
-                        </div>
-                      </div>
-                      
-                      {/* RATING - Separate Row on Mobile */}
-                      <div className="flex items-center gap-1 text-[10px] sm:text-xs text-yellow-500">
-                        {renderStars(product.average_rating || product.rating)}
-                        <span className="text-blue-600">({product.total_reviews || product.reviews_count || 0})</span>
-                      </div>
-                    </div>
-                  ))}
+                    {bestSellers.slice(0, visibleBestSellers).map((product, index) => renderProductCard(product, { rank: index + 1 }))}
                 </div>
                 {visibleBestSellers < bestSellers.length && (
                   <div style={{ textAlign: 'center', marginTop: '20px' }}>
@@ -861,50 +815,7 @@ const HomePage = () => {
                   </h2>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-lg shadow-md" style={{ border: '1px solid #E3E6E6' }}>
-                  {newArrivals.slice(0, visibleNewArrivals).map((product) => (
-                    <div
-                      key={product.id}
-                      onClick={() => handleProductClick(product.id)}
-                      className="cursor-pointer transition-all duration-200 p-2 sm:p-3 rounded relative active:bg-gray-50 hover:shadow-lg border border-gray-100"
-                    >
-                      {/* NEW BADGE */}
-                      <div className="absolute top-1 right-1 bg-green-600 text-white px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold z-10">
-                        NEW
-                      </div>
-                      
-                      {/* PRODUCT IMAGE - Mobile-First with aspect-square */}
-                      <div className="w-full aspect-square bg-gradient-to-br from-pink-400 to-yellow-300 rounded flex items-center justify-center mb-2 overflow-hidden">
-                        {product.image_url && product.image_url.startsWith('http') ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.title || product.name}
-                            className="w-full h-full object-contain"
-                            loading="lazy"
-                            style={{ maxWidth: '100%', maxHeight: '100%' }}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              const fallback = document.createElement('div');
-                              fallback.className = 'text-3xl sm:text-4xl md:text-5xl';
-                              fallback.textContent = '📦';
-                              e.target.parentElement.appendChild(fallback);
-                            }}
-                          />
-                        ) : (
-                          <div className="text-3xl sm:text-4xl md:text-5xl">📦</div>
-                        )}
-                      </div>
-                      
-                      {/* PRODUCT TITLE - Mobile Optimized */}
-                      <div className="text-[11px] sm:text-xs md:text-sm leading-tight mb-2 h-8 sm:h-9 overflow-hidden line-clamp-2 text-gray-900">
-                        {product.title || product.name}
-                      </div>
-                      
-                      {/* PRICE - Bold and Clear */}
-                      <div className="text-sm sm:text-base md:text-lg font-bold text-red-700">
-                        ${Number(product.price).toFixed(2)}
-                      </div>
-                    </div>
-                  ))}
+                    {newArrivals.slice(0, visibleNewArrivals).map((product) => renderProductCard(product, { badge: 'new' }))}
                 </div>
                 {visibleNewArrivals < newArrivals.length && (
                   <div style={{ textAlign: 'center', marginTop: '20px' }}>
@@ -948,53 +859,7 @@ const HomePage = () => {
                   </h2>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-lg shadow-md" style={{ border: '1px solid #E3E6E6' }}>
-                  {recommendedProducts.slice(0, visibleRecommended).map((product) => (
-                    <div
-                      key={product.id}
-                      onClick={() => handleProductClick(product.id)}
-                      className="cursor-pointer transition-all duration-200 p-2 sm:p-3 rounded active:bg-gray-50 hover:shadow-lg border border-gray-100"
-                    >
-                      {/* PRODUCT IMAGE - Mobile-First with aspect-square */}
-                      <div className="w-full aspect-square bg-gradient-to-br from-teal-300 to-pink-200 rounded flex items-center justify-center mb-2 overflow-hidden">
-                        {product.image_url && product.image_url.startsWith('http') ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.title || product.name}
-                            className="w-full h-full object-contain"
-                            loading="lazy"
-                            style={{ maxWidth: '100%', maxHeight: '100%' }}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              const fallback = document.createElement('div');
-                              fallback.className = 'text-3xl sm:text-4xl md:text-5xl';
-                              fallback.textContent = '📦';
-                              e.target.parentElement.appendChild(fallback);
-                            }}
-                          />
-                        ) : (
-                          <div className="text-3xl sm:text-4xl md:text-5xl">📦</div>
-                        )}
-                      </div>
-                      
-                      {/* PRODUCT TITLE - Mobile Optimized */}
-                      <div className="text-[11px] sm:text-xs md:text-sm leading-tight mb-2 h-8 sm:h-9 overflow-hidden line-clamp-2 text-gray-900">
-                        {product.title || product.name}
-                      </div>
-                      
-                      {/* PRICE - Bold and Clear with Block Display */}
-                      <div className="mb-1">
-                        <div className="text-sm sm:text-base md:text-lg font-bold text-red-700">
-                          ${Number(product.price).toFixed(2)}
-                        </div>
-                      </div>
-                      
-                      {/* RATING - Separate Row on Mobile */}
-                      <div className="flex items-center gap-1 text-[10px] sm:text-xs text-yellow-500">
-                        {renderStars(product.average_rating || product.rating)}
-                        <span className="text-blue-600">({product.total_reviews || product.reviews_count || 0})</span>
-                      </div>
-                    </div>
-                  ))}
+                    {recommendedProducts.slice(0, visibleRecommended).map((product) => renderProductCard(product))}
                 </div>
                 {visibleRecommended < recommendedProducts.length && (
                   <div style={{ textAlign: 'center', marginTop: '20px' }}>
@@ -1038,58 +903,7 @@ const HomePage = () => {
                   </h2>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 bg-white p-3 sm:p-4 md:p-5 lg:p-6 rounded-lg shadow-md" style={{ border: '1px solid #E3E6E6' }}>
-                  {trendingProducts.slice(0, visibleTrending).map((product) => (
-                    <div
-                      key={product.id}
-                      onClick={() => handleProductClick(product.id)}
-                      className="cursor-pointer transition-all duration-200 p-2 sm:p-3 rounded relative active:bg-gray-50 hover:shadow-lg border border-gray-100"
-                    >
-                      {/* HOT BADGE */}
-                      <div className="absolute top-1 left-1 bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold z-10">
-                        🔥 HOT
-                      </div>
-                      
-                      {/* PRODUCT IMAGE - Mobile-First with aspect-square */}
-                      <div className="w-full aspect-square bg-gradient-to-br from-pink-400 to-purple-400 rounded flex items-center justify-center mb-2 overflow-hidden">
-                        {product.image_url && product.image_url.startsWith('http') ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.title || product.name}
-                            className="w-full h-full object-contain"
-                            loading="lazy"
-                            style={{ maxWidth: '100%', maxHeight: '100%' }}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              const fallback = document.createElement('div');
-                              fallback.className = 'text-3xl sm:text-4xl md:text-5xl';
-                              fallback.textContent = '📦';
-                              e.target.parentElement.appendChild(fallback);
-                            }}
-                          />
-                        ) : (
-                          <div className="text-3xl sm:text-4xl md:text-5xl">📦</div>
-                        )}
-                      </div>
-                      
-                      {/* PRODUCT TITLE - Mobile Optimized */}
-                      <div className="text-[11px] sm:text-xs md:text-sm leading-tight mb-2 h-8 sm:h-9 overflow-hidden line-clamp-2 text-gray-900">
-                        {product.title || product.name}
-                      </div>
-                      
-                      {/* PRICE - Bold and Clear with Block Display */}
-                      <div className="mb-1">
-                        <div className="text-sm sm:text-base md:text-lg font-bold text-red-700">
-                          ${Number(product.price).toFixed(2)}
-                        </div>
-                      </div>
-                      
-                      {/* RATING - Separate Row on Mobile */}
-                      <div className="flex items-center gap-1 text-[10px] sm:text-xs text-yellow-500">
-                        {renderStars(product.average_rating || product.rating)}
-                        <span className="text-blue-600">({product.total_reviews || product.reviews_count || 0})</span>
-                      </div>
-                    </div>
-                  ))}
+                    {trendingProducts.slice(0, visibleTrending).map((product) => renderProductCard(product, { badge: 'hot' }))}
                 </div>
                 {visibleTrending < trendingProducts.length && (
                   <div style={{ textAlign: 'center', marginTop: '20px' }}>
@@ -1177,66 +991,7 @@ const HomePage = () => {
             </div>
             {/* PRODUCTS GRID - iPhone SE Optimized */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 lg:gap-5 mb-6 sm:mb-8 md:mb-10">
-              {filteredProducts.map((product) => {
-                const discount = calculateDiscount(product.price, product.original_price);
-                return (
-                  <div
-                    key={product.id}
-                    onClick={() => handleProductClick(product.id)}
-                    className="bg-white p-2 sm:p-3 md:p-4 rounded border border-gray-100 hover:shadow-lg transition-all duration-200 cursor-pointer active:bg-gray-50"
-                  >
-                    {/* PRODUCT IMAGE - Optimized for iPhone SE */}
-                    <div className="w-full aspect-square bg-gradient-to-br from-purple-400 to-pink-500 rounded flex items-center justify-center mb-2 overflow-hidden relative">
-                      {product.image_url && product.image_url.startsWith('http') ? (
-                        <img
-                          src={product.image_url}
-                          alt={product.title || product.name}
-                          className="w-full h-full object-contain"
-                          loading="lazy"
-                          style={{ maxWidth: '100%', maxHeight: '100%' }}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            const fallback = document.createElement('div');
-                            fallback.className = 'text-3xl sm:text-4xl md:text-5xl';
-                            fallback.textContent = '📦';
-                            e.target.parentElement.appendChild(fallback);
-                          }}
-                        />
-                      ) : (
-                        <div className="text-3xl sm:text-4xl md:text-5xl">📦</div>
-                      )}
-                      {discount && (
-                        <div className="absolute top-1 left-1 bg-red-700 text-white px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold z-10">
-                          -{discount}%
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* PRODUCT TITLE - iPhone SE Optimized */}
-                    <div className="text-[11px] sm:text-xs md:text-sm leading-tight mb-2 h-8 sm:h-9 overflow-hidden line-clamp-2 text-gray-900">
-                      {product.title || product.name}
-                    </div>
-                    
-                    {/* PRICE - Bold and Clear with Block Display */}
-                    <div className="mb-1">
-                      <div className="text-sm sm:text-base md:text-lg font-bold text-red-700">
-                        ${Number(product.price).toFixed(2)}
-                      </div>
-                      {product.original_price && (
-                        <div className="text-[10px] sm:text-xs text-gray-500 line-through mt-0.5">
-                          ${Number(product.original_price).toFixed(2)}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* RATING - Separate Row on Mobile */}
-                    <div className="flex items-center gap-1 text-[10px] sm:text-xs text-yellow-500">
-                      {renderStars(product.average_rating || product.rating)}
-                      <span className="text-blue-600">({product.total_reviews || product.reviews_count || 0})</span>
-                    </div>
-                  </div>
-                );
-              })}
+                {filteredProducts.map((product) => renderProductCard(product, { showDiscount: true }))}
             </div>
             </div>
           </section>

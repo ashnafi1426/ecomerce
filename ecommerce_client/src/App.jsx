@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 // Contexts
 import { SocketProvider } from './contexts/SocketContext'
 import { ChatProvider } from './contexts/ChatContext'
+import { LanguageProvider } from './i18n/LanguageContext'
 
 // Layouts
 import CustomerLayout from './layouts/CustomerLayout'
@@ -116,6 +117,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 function App() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <LanguageProvider>
       <SocketProvider>
         <ChatProvider>
           <Toaster position="top-right" />
@@ -252,6 +254,7 @@ function App() {
       </Routes>
         </ChatProvider>
       </SocketProvider>
+      </LanguageProvider>
     </Router>
   )
 }

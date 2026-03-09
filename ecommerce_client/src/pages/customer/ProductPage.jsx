@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { addToCart } from '../../store/slices/cartSlice'
 import { toast } from 'react-hot-toast'
 import api from '../../config/api'
 import StartChatButton from '../../components/chat/StartChatButton'
 import { PLACEHOLDERS } from '../../utils/imagePlaceholder'
+import { useLanguage } from '../../i18n/LanguageContext'
 
 const ProductPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const dispatch = useDispatch()
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated)
+  const { t } = useLanguage()
   
   // Core product state
   const [product, setProduct] = useState(null)
@@ -40,6 +43,10 @@ const ProductPage = () => {
   const imgRef = useRef(null)
   const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const [isImgHovering, setIsImgHovering] = useState(false)
+
+  // Ripple effect state
+  const [ripple, setRipple] = useState(null)
+  const cartBtnRef = useRef(null)
 
   // Variant state
   const [variants, setVariants] = useState([])
@@ -222,27 +229,41 @@ const ProductPage = () => {
 
   const handleAddToCart = async () => {
     if (!product) return
-    
+
+    // Redirect unauthenticated users to login
+    if (!isAuthenticated) {
+      toast(t('pleaseSignInCart'), { icon: '🔒', duration: 3000 })
+      navigate(`/login?redirect=/product/${id}`)
+      return
+    }
+
     // Validate stock
     if (stockStatus === 'OUT_OF_STOCK') {
-      toast.error('This product is currently out of stock')
+      toast.error(t('outOfStockError'))
       return
     }
     
     // Validate quantity
     if (quantity > availableQuantity) {
-      toast.error(`Only ${availableQuantity} items available`)
+      toast.error(t('onlyAvailable', { qty: availableQuantity }))
       return
     }
     
     if (quantity > product.max_quantity_per_order) {
-      toast.error(`Maximum ${product.max_quantity_per_order} items per order`)
+      toast.error(t('maxPerOrder', { max: product.max_quantity_per_order }))
       return
     }
     
     setAddingToCart(true)
     setCartBtnClass('pdp-btn-adding')
-    setTimeout(() => setCartBtnClass(''), 400)
+    setTimeout(() => setCartBtnClass(''), 420)
+
+    // Trigger ripple from button center
+    if (cartBtnRef.current) {
+      const rect = cartBtnRef.current.getBoundingClientRect()
+      setRipple({ x: rect.width / 2 - 25, y: rect.height / 2 - 25 })
+      setTimeout(() => setRipple(null), 700)
+    }
     
     try {
       // Add to cart with inventory locking
@@ -257,17 +278,14 @@ const ProductPage = () => {
       }
       
       dispatch(addToCart(cartItem))
-      toast.success('✓ Added to cart!', {
+      toast.success(t('addedToCart'), {
         duration: 2000,
-        style: {
-          background: '#067D62',
-          color: '#fff',
-        }
+        style: { background: '#067D62', color: '#fff' }
       })
       
     } catch (err) {
       console.error('Error adding to cart:', err)
-      toast.error('Failed to add to cart')
+      toast.error(t('failedAddCart'))
     } finally {
       setAddingToCart(false)
     }
@@ -275,10 +293,17 @@ const ProductPage = () => {
 
   const handleBuyNow = async () => {
     if (!product) return
-    
+
+    // Redirect unauthenticated users to login
+    if (!isAuthenticated) {
+      toast(t('pleaseSignIn'), { icon: '🔒', duration: 3000 })
+      navigate(`/login?redirect=/product/${id}`)
+      return
+    }
+
     // Validate stock
     if (stockStatus === 'OUT_OF_STOCK') {
-      toast.error('This product is currently out of stock')
+      toast.error(t('outOfStockError'))
       return
     }
     
@@ -299,7 +324,7 @@ const ProductPage = () => {
       navigate('/checkout')
     } catch (err) {
       console.error('Error:', err)
-      toast.error('Failed to proceed to checkout')
+      toast.error(t('failedCheckout'))
       setAddingToCart(false)
     }
   }
@@ -320,7 +345,7 @@ const ProductPage = () => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        toast.error('Please login to add items to wishlist')
+        toast.error(t('pleaseLoginWishlist'))
         navigate('/login')
         return
       }
@@ -332,15 +357,15 @@ const ProductPage = () => {
       if (isInWishlist) {
         await api.delete(`/wishlist/${id}`)
         setIsInWishlist(false)
-        toast.success('Removed from wishlist')
+        toast.success(t('removedFromWishlist'))
       } else {
         await api.post('/wishlist', { productId: id })
         setIsInWishlist(true)
-        toast.success('Added to wishlist')
+        toast.success(t('addedToWishlist'))
       }
     } catch (err) {
       console.error('Error toggling wishlist:', err)
-      toast.error(err.response?.data?.message || 'Failed to update wishlist')
+      toast.error(err.response?.data?.message || t('failedUpdateWishlist'))
     } finally {
       setWishlistLoading(false)
     }
@@ -401,13 +426,13 @@ const ProductPage = () => {
         <div className="max-w-[1500px] mx-auto px-5 py-5">
           <div className="text-center py-12">
             <div className="text-6xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold text-[#0F1111] mb-2">Failed to Load Product</h2>
+            <h2 className="text-2xl font-bold text-[#0F1111] mb-2">{t('failedToLoadProduct')}</h2>
             <p className="text-[#565959] mb-6">{error}</p>
             <button
               onClick={fetchProduct}
               className="bg-[#FF9900] text-[#0F1111] px-6 py-2 rounded-lg hover:bg-[#F08804] transition-colors font-semibold"
             >
-              Try Again
+              {t('retry')}
             </button>
           </div>
         </div>
@@ -422,12 +447,12 @@ const ProductPage = () => {
         <div className="max-w-[1500px] mx-auto px-5 py-5">
           <div className="text-center py-20">
             <div className="text-6xl mb-4">📦</div>
-            <h2 className="text-2xl font-bold text-[#0F1111] mb-4">Product Not Found</h2>
+            <h2 className="text-2xl font-bold text-[#0F1111] mb-4">{t('productNotFound')}</h2>
             <Link 
               to="/" 
               className="text-[#007185] hover:text-[#C7511F] hover:underline"
             >
-              Return to homepage
+              {t('returnToHomepage')}
             </Link>
           </div>
         </div>
@@ -474,172 +499,317 @@ const ProductPage = () => {
     <div className="bg-white min-h-screen">
       {/* ── PDP Animation Styles ── */}
       <style>{`
-        /* ═══════════════════════════════════════════════════
-           PRODUCT PAGE — AMAZON-STYLE 3D ANIMATION SYSTEM
-           ═══════════════════════════════════════════════════ */
+        /* ═══════════════════════════════════════════════════════════════
+           PRODUCT PAGE — ENHANCED 3D ANIMATION & HOVER SYSTEM V2
+           ═══════════════════════════════════════════════════════════════ */
 
-        /* ── 3D image flip on thumbnail switch ── */
-        @keyframes pdpImg3DFlip {
-          from { opacity: 0; transform: perspective(700px) rotateY(-40deg) scale(0.95); }
-          to   { opacity: 1; transform: perspective(700px) rotateY(0deg)   scale(1);    }
-        }
-        .pdp-img-3d-flip { animation: pdpImg3DFlip 0.44s cubic-bezier(0.23,1,0.32,1) both; }
-
-        /* ── Legacy fade (kept for backward compat) ── */
-        @keyframes pdpImgFade {
-          from { opacity: 0; transform: scale(0.97); }
-          to   { opacity: 1; transform: scale(1); }
-        }
-        .pdp-img-fade { animation: pdpImgFade 0.35s ease both; }
-
-        /* ── Staggered 3D perspective section reveal ── */
+        /* ── Staggered 3D perspective page reveal ── */
         @keyframes pdpReveal3D {
-          from { opacity: 0; transform: perspective(1200px) rotateX(12deg) translateY(30px); }
-          to   { opacity: 1; transform: perspective(1200px) rotateX(0deg)  translateY(0px);  }
+          from { opacity: 0; transform: perspective(1400px) rotateX(14deg) translateY(40px) scale(0.97); }
+          to   { opacity: 1; transform: perspective(1400px) rotateX(0deg)  translateY(0px)  scale(1);    }
         }
-        .pdp-reveal-ready.pdp-s0 { animation: pdpReveal3D 0.6s ease 0s    both; }
-        .pdp-reveal-ready.pdp-s1 { animation: pdpReveal3D 0.6s ease 0.12s both; }
-        .pdp-reveal-ready.pdp-s2 { animation: pdpReveal3D 0.6s ease 0.25s both; }
-        .pdp-reveal-ready.pdp-s3 { animation: pdpReveal3D 0.6s ease 0.4s  both; }
+        .pdp-reveal-ready.pdp-s0 { animation: pdpReveal3D 0.72s cubic-bezier(0.23,1,0.32,1) 0s   both; }
+        .pdp-reveal-ready.pdp-s1 { animation: pdpReveal3D 0.72s cubic-bezier(0.23,1,0.32,1) 0.1s both; }
+        .pdp-reveal-ready.pdp-s2 { animation: pdpReveal3D 0.72s cubic-bezier(0.23,1,0.32,1) 0.2s both; }
+        .pdp-reveal-ready.pdp-s3 { animation: pdpReveal3D 0.72s cubic-bezier(0.23,1,0.32,1) 0.35s both; }
 
-        /* ── Wishlist heart bounce ── */
-        @keyframes pdpHeartBounce {
-          0%  { transform: scale(1); }
-          30% { transform: scale(1.5) rotate(-10deg); }
-          60% { transform: scale(0.85) rotate(5deg); }
-          80% { transform: scale(1.15); }
-          100%{ transform: scale(1); }
+        /* ── 3D flip on thumbnail switch ── */
+        @keyframes pdpImg3DFlip {
+          from { opacity: 0; transform: perspective(900px) rotateY(-55deg) scale(0.88); }
+          to   { opacity: 1; transform: perspective(900px) rotateY(0deg)   scale(1);    }
         }
-        .pdp-heart-bounce { animation: pdpHeartBounce 0.55s ease; }
+        .pdp-img-3d-flip { animation: pdpImg3DFlip 0.52s cubic-bezier(0.23,1,0.32,1) both; }
 
-        /* ── Add-to-cart button press ── */
-        @keyframes pdpBtnPress {
-          0%   { transform: scale(1); }
-          40%  { transform: scale(0.94); }
-          100% { transform: scale(1); }
-        }
-        .pdp-btn-adding { animation: pdpBtnPress 0.35s ease; }
-
-        /* ── Thumbnail: 3D depth on hover ── */
-        .pdp-thumb {
-          transition: transform 0.22s ease, border-color 0.2s ease, box-shadow 0.22s ease;
-          transform-style: preserve-3d;
-        }
-        .pdp-thumb:hover {
-          transform: perspective(300px) translateZ(12px) scale(1.06);
-          box-shadow: 0 0 0 2px #FF9900, 0 8px 20px rgba(0,0,0,0.18);
-        }
-        .pdp-thumb-active {
-          transform: perspective(300px) translateZ(6px) scale(1.03);
-          box-shadow: 0 0 0 3px #FF9900, 0 4px 14px rgba(0,0,0,0.12);
-        }
-
-        /* ── Main 3D image container ── */
+        /* ── Main image 3D tilt container ── */
         .pdp-main-3d {
           transform-style: preserve-3d;
           will-change: transform;
-          border-radius: 12px;
+          border-radius: 16px;
+          background: #fff;
         }
 
-        /* ── Glass shine overlay that intensifies with tilt ── */
+        /* ── Dynamic shine overlay ── */
         .pdp-img-shine {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            135deg,
-            rgba(255,255,255,0.22) 0%,
-            rgba(255,255,255,0.06) 30%,
-            transparent 50%,
-            rgba(0,0,0,0.04) 100%
-          );
-          pointer-events: none;
-          z-index: 3;
+          position: absolute; inset: 0;
           border-radius: inherit;
-          transition: opacity 0.3s ease;
+          pointer-events: none; z-index: 3;
+          background: radial-gradient(ellipse at 28% 28%, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.12) 45%, transparent 72%);
+          transition: opacity 0.4s ease;
+        }
+
+        /* ── Thumbnails: 3D depth lift ── */
+        .pdp-thumb {
+          transition: transform 0.25s cubic-bezier(0.23,1,0.32,1), border-color 0.2s ease, box-shadow 0.25s cubic-bezier(0.23,1,0.32,1);
+          transform-style: preserve-3d; background: #fff;
+        }
+        .pdp-thumb:hover {
+          transform: perspective(400px) translateZ(18px) scale(1.09);
+          box-shadow: 0 0 0 2.5px #FF9900, 0 14px 30px rgba(0,0,0,0.22);
+        }
+        .pdp-thumb-active {
+          box-shadow: 0 0 0 3px #FF9900, 0 8px 20px rgba(255,153,0,0.28);
+          transform: perspective(400px) translateZ(9px) scale(1.05);
+        }
+
+        /* ── Add-to-cart press ── */
+        @keyframes pdpBtnPress {
+          0%   { transform: scale(1); }
+          33%  { transform: scale(0.92); }
+          66%  { transform: scale(1.04); }
+          100% { transform: scale(1); }
+        }
+        .pdp-btn-adding { animation: pdpBtnPress 0.42s cubic-bezier(0.23,1,0.32,1); }
+
+        /* ── Universal button lift ── */
+        .pdp-btn-lift {
+          transition: transform 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s ease;
+          position: relative; overflow: hidden;
+        }
+        .pdp-btn-lift:hover:not(:disabled) {
+          transform: translateY(-3px) scale(1.015);
+          box-shadow: 0 10px 28px rgba(0,0,0,0.2), 0 4px 10px rgba(0,0,0,0.12);
+        }
+        .pdp-btn-lift:active:not(:disabled) {
+          transform: translateY(0) scale(0.97);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+        }
+
+        /* ── Add to Cart: yellow glow pulse ── */
+        @keyframes pdpYellowGlow {
+          0%, 100% { box-shadow: 0 10px 28px rgba(0,0,0,0.2), 0 0 0 0 rgba(255,216,20,0); }
+          50%       { box-shadow: 0 10px 28px rgba(0,0,0,0.2), 0 0 26px 5px rgba(255,216,20,0.55); }
+        }
+        .pdp-btn-addcart:hover:not(:disabled) {
+          transform: translateY(-3px) scale(1.015);
+          animation: pdpYellowGlow 1.5s ease infinite;
+        }
+
+        /* ── Buy Now: orange glow pulse ── */
+        @keyframes pdpOrangeGlow {
+          0%, 100% { box-shadow: 0 10px 28px rgba(0,0,0,0.2), 0 0 0 0 rgba(255,164,28,0); }
+          50%       { box-shadow: 0 10px 28px rgba(0,0,0,0.2), 0 0 26px 5px rgba(255,164,28,0.5); }
+        }
+        .pdp-btn-buynow:hover:not(:disabled) {
+          transform: translateY(-3px) scale(1.015);
+          animation: pdpOrangeGlow 1.5s ease infinite;
+        }
+
+        /* ── Wishlist border hover ── */
+        .pdp-btn-wishlist {
+          transition: transform 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+        }
+        .pdp-btn-wishlist:hover:not(:disabled) {
+          transform: translateY(-3px) scale(1.015);
+          border-color: #FF9900 !important;
+          background: #fffbf0;
+          box-shadow: 0 10px 28px rgba(0,0,0,0.14), 0 0 18px 2px rgba(255,153,0,0.2);
+        }
+        .pdp-btn-wishlist:active:not(:disabled) { transform: translateY(0) scale(0.97); }
+
+        /* ── Chat button hover ── */
+        .pdp-btn-chat {
+          transition: transform 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s ease, background 0.22s ease, color 0.22s ease;
+        }
+        .pdp-btn-chat:hover {
+          transform: translateY(-3px) scale(1.015);
+          box-shadow: 0 10px 28px rgba(0,113,133,0.3);
+        }
+
+        /* ── Heart bounce ── */
+        @keyframes pdpHeartBounce {
+          0%   { transform: scale(1); }
+          25%  { transform: scale(1.65) rotate(-18deg); }
+          55%  { transform: scale(0.8) rotate(9deg); }
+          75%  { transform: scale(1.22); }
+          100% { transform: scale(1); }
+        }
+        .pdp-heart-bounce { animation: pdpHeartBounce 0.62s cubic-bezier(0.23,1,0.32,1); }
+
+        /* ── Cart ripple ── */
+        @keyframes pdpCartRipple {
+          0%   { transform: scale(0); opacity: 0.55; }
+          100% { transform: scale(4); opacity: 0; }
+        }
+        .pdp-ripple {
+          position: absolute; width: 50px; height: 50px;
+          border-radius: 50%; background: rgba(255,255,255,0.45);
+          pointer-events: none; transform-origin: center;
+          animation: pdpCartRipple 0.65s ease-out forwards;
+        }
+
+        /* ── Buy box 3D float card ── */
+        .pdp-buybox {
+          transition: transform 0.4s cubic-bezier(0.23,1,0.32,1), box-shadow 0.4s ease;
+          transform-style: preserve-3d;
+        }
+        .pdp-buybox:hover {
+          transform: perspective(1200px) translateZ(22px) translateY(-7px) rotateX(1.2deg);
+          box-shadow: 0 36px 80px rgba(0,0,0,0.16), 0 14px 30px rgba(0,0,0,0.1);
+        }
+
+        /* ── Review cards 3D tilt ── */
+        .pdp-review-card {
+          transition: transform 0.35s cubic-bezier(0.23,1,0.32,1), box-shadow 0.35s ease, background 0.25s ease;
+          transform-style: preserve-3d; border-radius: 8px;
+        }
+        .pdp-review-card:hover {
+          transform: perspective(1100px) rotateX(-2.5deg) rotateY(0.6deg) translateY(-5px);
+          box-shadow: 0 18px 44px rgba(0,0,0,0.1), 0 5px 14px rgba(0,0,0,0.06);
+          background: #fafafa;
+        }
+
+        /* ── Helpful button hover ── */
+        .pdp-helpful-btn {
+          transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .pdp-helpful-btn:hover {
+          transform: translateY(-2px) scale(1.04);
+          background: #f0f0f0;
+          border-color: #FF9900 !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         /* ── Floating badge pulse ── */
         @keyframes pdpBadgeFloat {
-          0%, 100% { transform: translateY(0px);  }
-          50%       { transform: translateY(-5px); }
+          0%, 100% { transform: translateY(0)   scale(1);    }
+          50%       { transform: translateY(-7px) scale(1.04); }
         }
-        .pdp-badge-float {
-          animation: pdpBadgeFloat 2.8s ease-in-out infinite;
-          display: inline-block;
-        }
+        .pdp-badge-float { animation: pdpBadgeFloat 3s cubic-bezier(0.45,0.05,0.55,0.95) infinite; display: inline-block; }
 
-        /* ── Button lift on hover ── */
-        .pdp-btn-lift {
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        /* ── Price pop on load ── */
+        @keyframes pdpPricePop {
+          from { opacity:0; transform: scale(0.65) translateY(14px); }
+          to   { opacity:1; transform: scale(1)    translateY(0); }
         }
-        .pdp-btn-lift:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+        .pdp-price-pop { animation: pdpPricePop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.45s both; }
+
+        /* ── Quantity select: focus glow ── */
+        .pdp-qty-select:focus {
+          border-color: #FF9900 !important;
+          box-shadow: 0 0 0 3px rgba(255,153,0,0.28);
+          outline: none;
         }
-        .pdp-btn-lift:active:not(:disabled) { transform: translateY(0); }
+        .pdp-qty-select { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
 
         /* ── Rating bar animated fill ── */
-        .pdp-bar-fill {
-          transition: width 1.1s cubic-bezier(0.23, 1, 0.32, 1) 0.4s;
-        }
+        .pdp-bar-fill { transition: width 1.25s cubic-bezier(0.23,1,0.32,1) 0.5s; }
 
-        /* ── Shimmer loading skeleton ── */
+        /* ── Skeleton shimmer ── */
         @keyframes pdpShimmer {
-          0%   { background-position: -600px 0; }
-          100% { background-position:  600px 0; }
+          0%   { background-position: -900px 0; }
+          100% { background-position:  900px 0; }
         }
         .pdp-shimmer {
-          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-          background-size: 600px 100%;
-          animation: pdpShimmer 1.4s infinite linear;
+          background: linear-gradient(90deg, #f0f0f0 25%, #e6e6e6 50%, #f0f0f0 75%);
+          background-size: 900px 100%;
+          animation: pdpShimmer 1.5s infinite linear;
         }
 
         /* ── Star micro-interaction ── */
         @keyframes pdpStarPop {
-          0%   { transform: scale(1); }
-          50%  { transform: scale(1.35) rotate(12deg); }
-          100% { transform: scale(1); }
+          0%   { transform: scale(1) rotate(0deg); }
+          40%  { transform: scale(1.55) rotate(18deg); }
+          70%  { transform: scale(0.88) rotate(-6deg); }
+          100% { transform: scale(1) rotate(0deg); }
         }
-        .pdp-star:hover { animation: pdpStarPop 0.35s ease; display:inline-block; }
+        .pdp-star:hover { animation: pdpStarPop 0.42s cubic-bezier(0.23,1,0.32,1); display:inline-block; }
 
-        /* ── Review card 3D tilt on hover ── */
-        .pdp-review-card {
-          transition: transform 0.3s ease, box-shadow 0.3s ease;
-          transform-style: preserve-3d;
+        /* ── Product detail row hover ── */
+        .pdp-detail-row {
+          transition: background 0.15s ease, padding-left 0.2s cubic-bezier(0.23,1,0.32,1);
+          border-radius: 3px; padding-left: 4px;
         }
-        .pdp-review-card:hover {
-          transform: perspective(900px) rotateX(-2deg) translateY(-3px);
-          box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+        .pdp-detail-row:hover { background: #f4f6f6; padding-left: 12px; }
+
+        /* ── About-this-item bullets ── */
+        .pdp-bullet {
+          transition: transform 0.2s cubic-bezier(0.23,1,0.32,1), color 0.15s ease;
+        }
+        .pdp-bullet:hover { transform: translateX(7px); }
+        .pdp-bullet:hover::before { color: #FF9900 !important; }
+
+        /* ── Rating bar row interactive ── */
+        .pdp-rating-row { transition: transform 0.18s ease; cursor: pointer; }
+        .pdp-rating-row:hover { transform: translateX(4px); }
+        .pdp-rating-row:hover .pdp-bar-fill { filter: brightness(1.2); }
+
+        /* ── Buy-box info / seller rows ── */
+        .pdp-seller-row {
+          transition: background 0.14s ease, padding-left 0.2s cubic-bezier(0.23,1,0.32,1);
+          border-radius: 4px; padding: 3px 8px; margin: 0 -8px;
+        }
+        .pdp-seller-row:hover { background: #edf2f2; padding-left: 14px; }
+
+        /* ── Section headings: hover teal ── */
+        .pdp-section-h3 { transition: color 0.18s ease; cursor: default; }
+        .pdp-section-h3:hover { color: #007185; }
+
+        /* ── Prime / delivery badge ── */
+        .pdp-prime-badge {
+          transition: transform 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s ease;
+          display: inline-flex;
+        }
+        .pdp-prime-badge:hover {
+          transform: translateY(-2px) scale(1.05);
+          box-shadow: 0 8px 22px rgba(0,113,133,0.38);
         }
 
-        /* ── Buy box: 3D floating card ── */
-        .pdp-buybox {
-          transition: transform 0.35s ease, box-shadow 0.35s ease;
-          transform-style: preserve-3d;
+        /* ── Variant text buttons 3D ── */
+        .pdp-variant-btn {
+          transition: transform 0.18s cubic-bezier(0.23,1,0.32,1), box-shadow 0.18s ease, border-color 0.15s ease, background 0.15s ease;
         }
-        .pdp-buybox:hover {
-          transform: perspective(1000px) translateZ(16px) translateY(-5px);
-          box-shadow: 0 28px 60px rgba(0,0,0,0.14), 0 10px 24px rgba(0,0,0,0.08);
+        .pdp-variant-btn:hover:not([disabled]):not(.pdp-variant-disabled) {
+          transform: translateY(-2px) perspective(400px) translateZ(10px);
+          box-shadow: 0 8px 22px rgba(0,0,0,0.18);
+        }
+        .pdp-variant-btn:active:not([disabled]):not(.pdp-variant-disabled) { transform: scale(0.94); }
+
+        /* ── Delivery info box ── */
+        .pdp-delivery-box {
+          transition: transform 0.22s cubic-bezier(0.23,1,0.32,1), box-shadow 0.22s ease;
+        }
+        .pdp-delivery-box:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.08);
         }
 
-        /* ── Mobile: reduce heavy 3D to save battery ── */
+        /* ── Breadcrumb item ── */
+        .pdp-breadcrumb-sep {
+          transition: transform 0.15s ease;
+          display: inline-block;
+        }
+        .pdp-breadcrumb-sep:hover { transform: scaleX(1.5); }
+
+        /* ── Author / seller link ── */
+        .pdp-seller-link {
+          transition: color 0.15s ease, letter-spacing 0.15s ease;
+        }
+        .pdp-seller-link:hover { letter-spacing: 0.01em; }
+
+        /* ── Mobile: reduce heavy 3D ── */
         @media (max-width: 768px) {
           .pdp-main-3d { will-change: auto; }
-          .pdp-buybox:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-          .pdp-review-card:hover { transform: translateY(-2px); }
+          .pdp-buybox:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.1); }
+          .pdp-review-card:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
+          .pdp-btn-lift:hover:not(:disabled),
+          .pdp-btn-addcart:hover:not(:disabled),
+          .pdp-btn-buynow:hover:not(:disabled),
+          .pdp-btn-wishlist:hover:not(:disabled) { transform: translateY(-2px); }
+          .pdp-bullet:hover { transform: translateX(4px); }
+          .pdp-detail-row:hover { padding-left: 8px; }
         }
       `}</style>
 
       {/* Breadcrumb */}
       <div className="border-b border-[#D5D9D9]">
         <div className="max-w-[1500px] mx-auto px-5 py-4 text-sm">
-          <Link to="/" className="text-[#007185] hover:text-[#C7511F] hover:underline">Home</Link>
-          <span className="mx-2 text-[#565959]">›</span>
-          <Link to={`/category/${product.category}`} className="text-[#007185] hover:text-[#C7511F] hover:underline">
+          <Link to="/" className="pdp-seller-link text-[#007185] hover:text-[#C7511F] hover:underline">Home</Link>
+          <span className="pdp-breadcrumb-sep mx-2 text-[#565959]">›</span>
+          <Link to={`/category/${product.category}`} className="pdp-seller-link text-[#007185] hover:text-[#C7511F] hover:underline">
             {product.category}
           </Link>
-          <span className="mx-2 text-[#565959]">›</span>
-          <span className="text-[#0F1111]">{product.name}</span>
+          <span className="pdp-breadcrumb-sep mx-2 text-[#565959]">›</span>
+          <span className="text-[#0F1111] font-medium">{product.name}</span>
         </div>
       </div>
 
@@ -648,28 +818,28 @@ const ProductPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Image Gallery - 5 columns */}
           <div className={`lg:col-span-5 pdp-s0 ${pageReady ? 'pdp-reveal-ready' : 'opacity-0'}`}>
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               {/* Thumbnails */}
               <div className="flex flex-col gap-2">
                 {images.map((img, index) => (
                   <div
                     key={index}
                     onClick={() => { setSelectedImage(index); setImgKey(k => k + 1) }}
-                    className={`pdp-thumb w-16 h-16 border-2 rounded cursor-pointer flex items-center justify-center ${selectedImage === index ? 'pdp-thumb-active border-[#FF9900]' : 'border-[#D5D9D9]'
+                    className={`pdp-thumb w-[88px] h-[88px] border-2 rounded-lg cursor-pointer flex items-center justify-center ${selectedImage === index ? 'pdp-thumb-active border-[#FF9900]' : 'border-[#D5D9D9]'
                       }`}
                   >
                     {img && img.startsWith('http') ? (
                       <img 
                         src={img} 
                         alt={`${product.name} ${index + 1}`} 
-                        className="w-full h-full object-cover rounded"
+                        className="w-full h-full object-cover rounded-md"
                         onError={(e) => {
                           e.target.onerror = null;
-                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23f3f4f6" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="32"%3E📦%3C/text%3E%3C/svg%3E';
+                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="88" height="88"%3E%3Crect fill="%23f3f4f6" width="88" height="88"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="40"%3E📦%3C/text%3E%3C/svg%3E';
                         }}
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-2xl rounded">
+                        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-3xl rounded-md">
                         📦
                       </div>
                     )}
@@ -705,14 +875,14 @@ const ProductPage = () => {
                       key={imgKey}
                       src={images[selectedImage]}
                       alt={product.name}
-                      className="pdp-img-3d-flip w-full h-[500px] object-contain"
+                      className="pdp-img-3d-flip w-full h-[660px] object-contain"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="500" height="500"%3E%3Crect fill="%23f3f4f6" width="500" height="500"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="120"%3E📦%3C/text%3E%3C/svg%3E';
+                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="660" height="660"%3E%3Crect fill="%23f3f4f6" width="660" height="660"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="160"%3E📦%3C/text%3E%3C/svg%3E';
                       }}
                     />
                   ) : (
-                      <div key={imgKey} className="pdp-img-3d-flip w-full h-[500px] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-9xl">
+                      <div key={imgKey} className="pdp-img-3d-flip w-full h-[660px] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-9xl">
                       📦
                     </div>
                   )}
@@ -732,26 +902,26 @@ const ProductPage = () => {
             
             <h1 className="text-2xl font-normal text-[#0F1111] mb-2 leading-tight">{product.name}</h1>
             
-            <Link to={`/seller/${product.seller_id}`} className="text-[#007185] hover:text-[#C7511F] hover:underline text-sm inline-block mb-3">
-              Visit the {product.seller_name || 'Store'}
+            <Link to={`/seller/${product.seller_id}`} className="pdp-seller-link text-[#007185] hover:text-[#C7511F] hover:underline text-sm inline-block mb-3">
+              {t('visitStore', { name: product.seller_name || 'Store' })}
             </Link>
             
             {/* Rating Section */}
             <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[#D5D9D9]">
-              <div className="flex text-[#FF9900] text-lg">
+              <div className="flex text-[#FF9900] text-lg gap-0.5">
                 {[...Array(5)].map((_, i) => (
-                  <span key={i}>{i < Math.floor(rating) ? '★' : '☆'}</span>
+                  <span key={i} className="pdp-star">{i < Math.floor(rating) ? '★' : '☆'}</span>
                 ))}
               </div>
-              <a href="#reviews" className="text-[#007185] hover:text-[#C7511F] hover:underline text-sm">
-                {rating} out of 5 stars
+              <a href="#reviews" className="pdp-seller-link text-[#007185] hover:text-[#C7511F] hover:underline text-sm">
+                {rating} {t('outOfFiveStars')}
               </a>
-              <span className="text-[#007185] text-sm">{reviews.toLocaleString()} ratings</span>
+              <a href="#reviews" className="pdp-seller-link text-[#007185] hover:text-[#C7511F] hover:underline text-sm">{reviews.toLocaleString()} {t('ratings')}</a>
             </div>
 
             {/* Price Section */}
             <div className="mb-4 pb-4 border-b border-[#D5D9D9]">
-              <div className="text-sm text-[#565959] mb-1">Price:</div>
+              <div className="text-sm text-[#565959] mb-1">{t('price')}</div>
               <div className="flex items-baseline gap-2 mb-2">
                 <span className="text-3xl text-[#B12704] font-normal">${product.price.toFixed(2)}</span>
                 {originalPrice > product.price && (
@@ -761,9 +931,9 @@ const ProductPage = () => {
                   </>
                 )}
               </div>
-              <div className="inline-flex items-center gap-2 bg-[#007185] text-white px-3 py-1 rounded text-sm">
+              <div className="pdp-prime-badge items-center gap-2 bg-[#007185] text-white px-3 py-1 rounded text-sm cursor-pointer">
                 <span>⚡</span>
-                <span>Prime FREE Delivery</span>
+                <span>{t('freePrimeDelivery')}</span>
               </div>
             </div>
 
@@ -808,12 +978,12 @@ const ProductPage = () => {
                           <button
                             key={value}
                             onClick={() => available && handleOptionSelect(attrKey, value)}
-                            className={`px-3 py-1.5 text-sm border rounded transition-all ${
+                            className={`pdp-variant-btn px-3 py-1.5 text-sm border rounded ${
                               isSelected
                                 ? 'border-[#FF9900] bg-[#FFF3cd] text-[#0F1111] font-semibold'
                                 : available
                                 ? 'border-[#D5D9D9] text-[#0F1111] hover:border-[#565959]'
-                                : 'border-[#D5D9D9] text-[#A0A0A0] line-through cursor-not-allowed'
+                                : 'pdp-variant-disabled border-[#D5D9D9] text-[#A0A0A0] line-through cursor-not-allowed'
                             }`}
                           >
                             {value}
@@ -831,77 +1001,82 @@ const ProductPage = () => {
 
             {/* About This Item */}
             <div className="mb-6">
-              <h3 className="font-bold text-[#0F1111] mb-3">About this item</h3>
+              <h3 className="pdp-section-h3 font-bold text-[#0F1111] mb-3">{t('aboutThisItem')}</h3>
               <ul className="space-y-2">
-                <li className="text-sm text-[#0F1111] pl-5 relative before:content-['•'] before:absolute before:left-0 before:font-bold">
-                  {product.description}
-                </li>
-                <li className="text-sm text-[#0F1111] pl-5 relative before:content-['•'] before:absolute before:left-0 before:font-bold">
-                  Premium quality materials and construction
-                </li>
-                <li className="text-sm text-[#0F1111] pl-5 relative before:content-['•'] before:absolute before:left-0 before:font-bold">
-                  Fast and reliable shipping
-                </li>
-                <li className="text-sm text-[#0F1111] pl-5 relative before:content-['•'] before:absolute before:left-0 before:font-bold">
-                  30-day return policy
-                </li>
-                <li className="text-sm text-[#0F1111] pl-5 relative before:content-['•'] before:absolute before:left-0 before:font-bold">
-                  Secure transaction guaranteed
-                </li>
+                {[
+                  product.description,
+                  t('premiumQuality'),
+                  t('fastShipping'),
+                  t('thirtyDayReturn'),
+                  t('secureTransactionItem')
+                ].filter(Boolean).map((item, i) => (
+                  <li key={i} className="pdp-bullet text-sm text-[#0F1111] pl-5 relative before:content-['•'] before:absolute before:left-0 before:font-bold">
+                    {item}
+                  </li>
+                ))}
               </ul>
             </div>
 
             {/* Product Details */}
-            {product.specifications && (
-              <div className="mb-6">
-                <h3 className="font-bold text-[#0F1111] mb-3">Product Details</h3>
-                <div className="space-y-0">
-                  {Object.entries(product.specifications).map(([key, value]) => (
-                    <div key={key} className="flex py-2 border-b border-[#F7F8F8]">
-                      <div className="font-semibold text-[#0F1111] w-36 text-sm">{key}</div>
-                      <div className="flex-1 text-[#0F1111] text-sm">{value}</div>
-                    </div>
-                  ))}
-                </div>
+            <div className="mb-6">
+              <h3 className="pdp-section-h3 font-bold text-[#0F1111] mb-3">{t('productDetails')}</h3>
+              <div className="space-y-0">
+                {[
+                  { key: t('sku'), value: product.sku || product.id },
+                  { key: t('stockStatus'), value: stockStatus === 'IN_STOCK' ? t('inStock').replace('\u2713 ', '') : stockStatus === 'LOW_STOCK' ? `Low Stock (${availableQuantity} left)` : t('outOfStock').replace('\u2717 ', ''), stockKey: true },
+                  { key: t('returns'), value: t('thirtyDayReturn') },
+                  { key: t('shipping'), value: t('freeStandardDelivery') },
+                  ...(product.specifications ? Object.entries(product.specifications).map(([k, v]) => ({ key: k, value: v })) : [])
+                ].map(({ key, value, stockKey }) => (
+                  <div key={key} className="pdp-detail-row flex py-2 border-b border-[#F7F8F8]">
+                    <div className="font-semibold text-[#0F1111] w-36 text-sm flex-shrink-0">{key}</div>
+                    <div className={`flex-1 text-sm ${stockKey
+                      ? stockStatus === 'IN_STOCK' ? 'text-[#067D62] font-semibold'
+                        : stockStatus === 'LOW_STOCK' ? 'text-[#B12704] font-semibold'
+                          : 'text-[#CC0C39] font-semibold'
+                      : 'text-[#0F1111]'
+                      }`}>{value}</div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Buy Box - 3 columns */}
           <div className={`lg:col-span-3 pdp-s2 ${pageReady ? 'pdp-reveal-ready' : 'opacity-0'}`}>
             <div className="pdp-buybox border border-[#D5D9D9] rounded-lg p-5 sticky top-5">
-              <div className="text-3xl text-[#B12704] font-normal mb-3">${product.price.toFixed(2)}</div>
+              <div className="pdp-price-pop text-3xl text-[#B12704] font-normal mb-3">${product.price.toFixed(2)}</div>
               
               {/* Delivery Info */}
-              <div className="bg-[#F7F8F8] rounded p-3 mb-4">
+              <div className="pdp-delivery-box bg-[#F7F8F8] rounded p-3 mb-4">
                 <p className="text-sm text-[#0F1111] mb-1">
-                  <strong>FREE delivery</strong> <span className="text-[#067D62] font-semibold">{deliveryDateStr}</span>
+                  <strong>{t('freeDelivery')}</strong> <span className="text-[#067D62] font-semibold">{deliveryDateStr}</span>
                 </p>
                 <p className="text-sm text-[#0F1111] mb-1">
-                  Order within <strong>5 hrs 23 mins</strong>
+                  {t('orderWithin')} <strong>5 hrs 23 mins</strong>
                 </p>
-                <p className="text-sm text-[#0F1111]">📍 Deliver to New York 10001</p>
+                <p className="text-sm text-[#0F1111]">📍 {t('deliverTo2')} New York 10001</p>
               </div>
               
               {/* Stock Status */}
               {stockStatus === 'IN_STOCK' && (
-                <div className="text-[#067D62] font-semibold mb-4">✓ In Stock</div>
+                <div className="text-[#067D62] font-semibold mb-4">{t('inStock')}</div>
               )}
               {stockStatus === 'LOW_STOCK' && (
-                <div className="text-[#B12704] font-semibold mb-4">⚠ Only {availableQuantity} left in stock - order soon</div>
+                <div className="text-[#B12704] font-semibold mb-4">{t('lowStock', { qty: availableQuantity })}</div>
               )}
               {stockStatus === 'OUT_OF_STOCK' && (
-                <div className="text-[#CC0C39] font-semibold mb-4">✗ Currently unavailable</div>
+                <div className="text-[#CC0C39] font-semibold mb-4">{t('outOfStock')}</div>
               )}
               
               {/* Quantity Selector */}
               {stockStatus !== 'OUT_OF_STOCK' && (
                 <div className="mb-4">
-                  <label className="block text-sm font-semibold text-[#0F1111] mb-2">Quantity:</label>
+                  <label className="block text-sm font-semibold text-[#0F1111] mb-2">{t('quantity')}</label>
                   <select
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
-                    className="w-full border border-[#D5D9D9] rounded px-3 py-2 text-[#0F1111] focus:border-[#FF9900] focus:ring-1 focus:ring-[#FF9900] outline-none"
+                    className="pdp-qty-select w-full border border-[#D5D9D9] rounded px-3 py-2 text-[#0F1111] outline-none"
                   >
                     {[...Array(Math.min(product.max_quantity_per_order, availableQuantity, 10))].map((_, i) => (
                       <option key={i + 1} value={i + 1}>{i + 1}</option>
@@ -914,35 +1089,39 @@ const ProductPage = () => {
               {stockStatus !== 'OUT_OF_STOCK' && (
                 <>
                   <button
+                    ref={cartBtnRef}
                     onClick={handleAddToCart}
                     disabled={addingToCart}
-                    className={`pdp-btn-lift w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] py-3 rounded-lg font-semibold mb-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${cartBtnClass}`}
+                    className={`pdp-btn-lift pdp-btn-addcart w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] py-3 rounded-lg font-semibold mb-2 disabled:opacity-50 disabled:cursor-not-allowed ${cartBtnClass}`}
                   >
+                    {ripple && (
+                      <span className="pdp-ripple" style={{ left: ripple.x, top: ripple.y }} />
+                    )}
                     {addingToCart ? (
                       <span className="flex items-center justify-center gap-2">
                         <span className="inline-block w-4 h-4 border-2 border-[#0F1111] border-t-transparent rounded-full animate-spin"></span>
-                        Adding...
+                        {t('adding')}
                       </span>
-                    ) : 'Add to Cart'}
+                    ) : t('addToCart')}
                   </button>
-                  
+
                   <button
                     onClick={handleBuyNow}
                     disabled={addingToCart}
-                    className="pdp-btn-lift w-full bg-[#FFA41C] hover:bg-[#FF8F00] text-[#0F1111] py-3 rounded-lg font-semibold mb-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="pdp-btn-lift pdp-btn-buynow w-full bg-[#FFA41C] hover:bg-[#FF8F00] text-[#0F1111] py-3 rounded-lg font-semibold mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Buy Now
+                    {t('buyNow')}
                   </button>
-                  
+
                   <button
                     onClick={handleToggleWishlist}
                     disabled={wishlistLoading}
-                    className="pdp-btn-lift w-full border-2 border-[#D5D9D9] hover:border-[#FF9900] text-[#0F1111] py-3 rounded-lg font-semibold mb-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="pdp-btn-wishlist w-full border-2 border-[#D5D9D9] text-[#0F1111] py-3 rounded-lg font-semibold mb-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <span className={`text-xl ${heartClass}`}>{isInWishlist ? '❤️' : '🤍'}</span>
-                    {wishlistLoading ? 'Updating...' : isInWishlist ? 'In Wishlist' : 'Add to Wishlist'}
+                    {wishlistLoading ? t('updating') : isInWishlist ? t('inWishlist') : t('addToWishlist')}
                   </button>
-                  
+
                   {/* Chat with Seller Button */}
                   <StartChatButton
                     recipientId={product.seller_id}
@@ -954,28 +1133,28 @@ const ProductPage = () => {
                       productName: product.name,
                       productPrice: product.price
                     }}
-                    className="w-full border-2 border-[#007185] hover:bg-[#007185] text-[#007185] hover:text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                    className="pdp-btn-chat w-full border-2 border-[#007185] hover:bg-[#007185] text-[#007185] hover:text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
                   >
                     <span className="text-xl">💬</span>
-                    Chat with Seller
+                    {t('chatWithSeller')}
                   </StartChatButton>
                 </>
               )}
               
               {/* Seller Info */}
-              <div className="pt-4 border-t border-[#D5D9D9] text-sm space-y-2">
-                <p className="text-[#0F1111]">
-                  <strong>Ships from:</strong> FastShop
+              <div className="pt-4 border-t border-[#D5D9D9] text-sm space-y-1">
+                <p className="pdp-seller-row text-[#0F1111]">
+                  <strong>{t('shipsFrom')}</strong> FastShop
                 </p>
-                <p className="text-[#0F1111]">
-                  <strong>Sold by:</strong>{' '}
-                  <Link to={`/seller/${product.seller_id}`} className="text-[#007185] hover:text-[#C7511F] hover:underline">
+                <p className="pdp-seller-row text-[#0F1111]">
+                  <strong>{t('soldBy')}</strong>{' '}
+                  <Link to={`/seller/${product.seller_id}`} className="pdp-seller-link text-[#007185] hover:text-[#C7511F] hover:underline">
                     {product.seller_name || 'FastShop'}
                   </Link>
                 </p>
-                <p className="text-[#0F1111]">⭐ 98% positive ratings (5,432 ratings)</p>
-                <p className="text-[#0F1111]">🔒 Secure transaction</p>
-                <p className="text-[#0F1111]">🔄 30-day return policy</p>
+                <p className="pdp-seller-row text-[#0F1111]">⭐ {t('positiveRatings')} (5,432 {t('ratings')})</p>
+                <p className="pdp-seller-row text-[#0F1111]">{t('secureTransaction')}</p>
+                <p className="pdp-seller-row text-[#0F1111]">{t('returnPolicy')}</p>
               </div>
             </div>
           </div>
@@ -983,7 +1162,7 @@ const ProductPage = () => {
 
         {/* Customer Reviews Section */}
         <div className={`mt-12 pdp-s3 ${pageReady ? 'pdp-reveal-ready' : 'opacity-0'}`} id="reviews">
-          <h2 className="text-3xl font-bold text-[#0F1111] mb-6">Customer Reviews</h2>
+          <h2 className="pdp-section-h3 text-3xl font-bold text-[#0F1111] mb-6">{t('customerReviews')}</h2>
           
           {/* Review Summary */}
           <div className="bg-[#F7F8F8] rounded-lg p-6 mb-8">
@@ -991,9 +1170,9 @@ const ProductPage = () => {
               {/* Average Rating */}
               <div className="text-center">
                 <div className="text-5xl font-bold text-[#0F1111] mb-2">{rating}</div>
-                <div className="flex justify-center text-[#FF9900] text-2xl mb-2">
+                <div className="flex justify-center text-[#FF9900] text-2xl mb-2 gap-0.5">
                   {[...Array(5)].map((_, i) => (
-                    <span key={i}>{i < Math.floor(rating) ? '★' : '☆'}</span>
+                    <span key={i} className="pdp-star">{i < Math.floor(rating) ? '★' : '☆'}</span>
                   ))}
                 </div>
                 <div className="text-sm text-[#565959]">{reviews.toLocaleString()} ratings</div>
@@ -1008,15 +1187,15 @@ const ProductPage = () => {
                   { stars: 2, percentage: 3 },
                   { stars: 1, percentage: 2 }
                 ].map(({ stars, percentage }) => (
-                  <div key={stars} className="flex items-center gap-3">
-                    <div className="w-16 text-sm text-[#0F1111]">{stars} star</div>
-                    <div className="flex-1 h-5 bg-[#D5D9D9] rounded overflow-hidden">
-                      <div 
+                  <div key={stars} className="pdp-rating-row flex items-center gap-3">
+                    <a href="#reviews" className="pdp-seller-link w-16 text-sm text-[#007185] hover:underline flex-shrink-0">{t('starRating', { n: stars })}</a>
+                    <div className="flex-1 h-4 bg-[#D5D9D9] rounded overflow-hidden">
+                      <div
                         className="pdp-bar-fill h-full bg-[#FF9900] rounded"
                         style={{ width: pageReady ? `${percentage}%` : '0%' }}
                       ></div>
                     </div>
-                    <div className="w-12 text-right text-sm text-[#565959]">{percentage}%</div>
+                    <a href="#reviews" className="pdp-seller-link w-12 text-right text-sm text-[#007185] hover:underline flex-shrink-0">{percentage}%</a>
                   </div>
                 ))}
               </div>
@@ -1061,26 +1240,26 @@ const ProductPage = () => {
                   </div>
                   <div>
                     <div className="font-semibold text-[#0F1111]">{review.name}</div>
-                    <div className="flex text-[#FF9900]">
+                    <div className="flex text-[#FF9900] gap-0.5">
                       {[...Array(5)].map((_, i) => (
-                        <span key={i}>{i < review.rating ? '★' : '☆'}</span>
+                        <span key={i} className="pdp-star">{i < review.rating ? '★' : '☆'}</span>
                       ))}
                     </div>
                   </div>
                 </div>
                 <div className="text-sm text-[#565959] mb-2">
-                  {review.verified && <span className="text-[#FF9900] font-semibold mr-2">✓ Verified Purchase</span>}
-                  Reviewed in the United States on {review.date}
+                  {review.verified && <span className="text-[#FF9900] font-semibold mr-2">{t('verifiedPurchase')}</span>}
+                  {t('reviewedIn')} {review.date}
                 </div>
                 <div className="mb-3">
                   <div className="font-bold text-[#0F1111] mb-1">{review.title}</div>
                   <div className="text-[#0F1111] leading-relaxed">{review.text}</div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <button className="pdp-btn-lift border border-[#D5D9D9] px-4 py-1 rounded hover:bg-[#F7F8F8] transition-colors text-[#0F1111]">
-                    👍 Helpful
+                  <button className="pdp-helpful-btn border border-[#D5D9D9] px-4 py-1 rounded text-[#0F1111]">
+                    {t('helpful')}
                   </button>
-                  <span className="text-[#565959]">{review.helpful} people found this helpful</span>
+                  <span className="text-[#565959]">{review.helpful} {t('peopleFoundHelpful')}</span>
                 </div>
               </div>
             ))}
