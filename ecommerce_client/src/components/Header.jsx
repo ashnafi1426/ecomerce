@@ -114,7 +114,7 @@ const Header = () => {
         .hdr a { color: inherit; text-decoration: none; }
 
         /* ── Main bar ── */
-        .hdr-main { background: #131921; padding: 8px 16px; display: flex; align-items: center; gap: 12px; transition: box-shadow .2s; width: 100%; box-sizing: border-box; }
+        .hdr-main { background: #131921; padding: 8px 16px; display: flex; align-items: center; gap: 12px; transition: box-shadow .2s; width: 100%; box-sizing: border-box; justify-content: space-between; }
         .hdr-main.scrolled { box-shadow: 0 4px 20px rgba(0,0,0,.7); }
 
         /* ── Logo ── */
@@ -138,7 +138,7 @@ const Header = () => {
         .hdr-deliver-line2 { font-size: 14px; font-weight: 700; color: #fff; }
 
         /* ── Search bar ── */
-        .hdr-search { flex: 1; display: flex; height: 40px; border-radius: 4px; overflow: hidden; min-width: 300px; max-width: 600px; margin: 0 12px; }
+        .hdr-search { flex: 1; display: flex; height: 40px; border-radius: 4px; overflow: hidden; min-width: 300px; max-width: none; margin: 0 12px; }
         .hdr-search-cat { background: #F3F3F3; border: none; padding: 0 8px; font-size: 13px; color: #555; cursor: pointer; border-right: 1px solid #cdcdcd; min-width: 50px; max-width: 120px; flex-shrink: 0; }
         .hdr-search-cat:hover { background: #e6e6e6; }
         .hdr-search-input { flex: 1; border: none; padding: 0 12px; font-size: 14px; color: #111; outline: none; min-width: 0; background: #fff; }
@@ -147,7 +147,7 @@ const Header = () => {
         .hdr-search-btn:hover { background: #e67e00; }
 
         /* ── Right actions ── */
-        .hdr-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .hdr-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
         .hdr-action { padding: 4px 6px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; text-align: left; text-decoration: none; display: flex; flex-direction: column; }
         .hdr-action:hover { border-color: #fff; }
         .hdr-action-line1 { font-size: 12px; color: #ccc; white-space: nowrap; }
@@ -192,8 +192,8 @@ const Header = () => {
         @media (max-width: 1199px) { 
           .hdr-deliver { display: none; } 
           .hdr-lang { display: none !important; }
-          .hdr-main { gap: 8px; }
-          .hdr-search { max-width: 500px; }
+          .hdr-main { gap: 8px; padding: 8px 12px; }
+          .hdr-search { margin: 0 8px; }
         }
         @media (max-width: 899px) {
           .hdr-main { padding: 6px 12px; gap: 6px; }
@@ -201,7 +201,7 @@ const Header = () => {
           .hdr-cart-label { display: none; }
           .hdr-search-cat { min-width: 50px; max-width: 100px; padding: 0 6px; }
           .hdr-search-btn { padding: 0 12px; }
-          .hdr-search { max-width: 400px; height: 36px; }
+          .hdr-search { height: 36px; margin: 0 6px; }
         }
         @media (max-width: 767px) {
           .hdr-main { padding: 6px 10px; gap: 4px; }
@@ -215,45 +215,49 @@ const Header = () => {
           .hdr-logo-name { font-size: 20px; }
           .hdr-search-input { padding: 0 10px; }
           .hdr-search-btn { padding: 0 12px; }
-          .hdr-search { min-width: 180px; height: 32px; }
+          .hdr-search { height: 32px; margin: 0 4px; min-width: 180px; }
         }
         @media (max-width: 479px) {
           .hdr-main { padding: 4px 8px; gap: 4px; }
           .hdr-logo-name { font-size: 18px; }
-          .hdr-search { height: 32px; min-width: 150px; }
+          .hdr-search { height: 32px; min-width: 150px; margin: 0 4px; }
           .hdr-search-btn { padding: 0 10px; }
           .hdr-search-input { padding: 0 8px; font-size: 13px; }
+          .hdr-actions { gap: 2px; }
         }
       `}</style>
 
       {/* ── Main bar ── */}
       <div className={`hdr-main${scrolled ? ' scrolled' : ''}`}>
+        
+        {/* Left section */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {/* Hamburger (mobile) */}
+          <button className="hdr-hamburger" onClick={() => setShowMobileMenu(p => !p)} aria-label="Menu">
+            <svg width="24" height="17" viewBox="0 0 24 17" fill="none">
+              <rect y="0" width="24" height="2.8" rx="1.4" fill="white" />
+              <rect y="7.1" width="24" height="2.8" rx="1.4" fill="white" />
+              <rect y="14.2" width="24" height="2.8" rx="1.4" fill="white" />
+            </svg>
+            All
+          </button>
 
-        {/* Hamburger (mobile) */}
-        <button className="hdr-hamburger" onClick={() => setShowMobileMenu(p => !p)} aria-label="Menu">
-          <svg width="24" height="17" viewBox="0 0 24 17" fill="none">
-            <rect y="0" width="24" height="2.8" rx="1.4" fill="white" />
-            <rect y="7.1" width="24" height="2.8" rx="1.4" fill="white" />
-            <rect y="14.2" width="24" height="2.8" rx="1.4" fill="white" />
-          </svg>
-          All
-        </button>
+          {/* Logo */}
+          <Link to="/" className="hdr-logo">
+            <span className="hdr-logo-name">fast<span>shop</span></span>
+          </Link>
 
-        {/* Logo */}
-        <Link to="/" className="hdr-logo">
-          <span className="hdr-logo-name">fast<span>shop</span></span>
-        </Link>
-
-        {/* Deliver to (desktop ≥1200px) */}
-        <div className="hdr-deliver">
-          <span className="hdr-deliver-icon">📍</span>
-          <div>
-            <div className="hdr-deliver-line1">Deliver to</div>
-            <div className="hdr-deliver-line2">United States</div>
+          {/* Deliver to (desktop ≥1200px) */}
+          <div className="hdr-deliver">
+            <span className="hdr-deliver-icon">📍</span>
+            <div>
+              <div className="hdr-deliver-line1">Deliver to</div>
+              <div className="hdr-deliver-line2">United States</div>
+            </div>
           </div>
         </div>
 
-        {/* Search */}
+        {/* Center section - Search */}
         <form onSubmit={handleSearch} className="hdr-search">
           <select
             className="hdr-search-cat"
@@ -272,140 +276,143 @@ const Header = () => {
             autoComplete="off"
           />
           <button type="submit" className="hdr-search-btn" aria-label="Search">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
         </form>
 
-        {/* Language / Region selector */}
-        <div ref={langMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
-          <button
-            className="hdr-lang"
-            aria-label="Language"
-            onClick={() => setShowLangMenu(p => !p)}
-          >
-            <span style={{ fontSize: 22, lineHeight: 1 }}>{currentLang.langFlag}</span>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <span className="hdr-lang-code">{currentLang.langCode}</span>
-              <span className="hdr-lang-arr">▾</span>
-            </div>
-          </button>
-          {showLangMenu && (
-            <div
-              className="hdr-dropdown"
-              style={{
-                top: (langMenuRef.current?.getBoundingClientRect().bottom ?? 56) + 4,
-                left: langMenuRef.current?.getBoundingClientRect().left ?? 0,
-                minWidth: 200,
-                paddingTop: 6,
-                paddingBottom: 6,
-              }}
+        {/* Right section */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+          {/* Language / Region selector */}
+          <div ref={langMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              className="hdr-lang"
+              aria-label="Language"
+              onClick={() => setShowLangMenu(p => !p)}
             >
-              <div className="hdr-dd-heading">Select Language</div>
-              {availableLangs.map(l => (
-                <button
-                  key={l.code}
-                  className="hdr-dd-item"
-                  style={lang === l.code ? { fontWeight: 700, color: '#FF9900', background: '#fff8ee' } : {}}
-                  onClick={() => { switchLang(l.code); setShowLangMenu(false) }}
-                >
-                  {l.flag} &nbsp;{l.name}
-                  {lang === l.code && <span style={{ marginLeft: 8, color: '#FF9900' }}>✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right actions */}
-        <div className="hdr-actions">
-
-          {/* Account dropdown */}
-          {isAuthenticated ? (
-            <div ref={accountMenuRef} style={{ position: 'relative' }}>
-              <button
-                className="hdr-action"
-                onClick={() => setShowAccountMenu(p => !p)}
-                onMouseEnter={() => setShowAccountMenu(true)}
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{currentLang.langFlag}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span className="hdr-lang-code">{currentLang.langCode}</span>
+                <span className="hdr-lang-arr">▾</span>
+              </div>
+            </button>
+            {showLangMenu && (
+              <div
+                className="hdr-dropdown"
+                style={{
+                  top: (langMenuRef.current?.getBoundingClientRect().bottom ?? 56) + 4,
+                  left: langMenuRef.current?.getBoundingClientRect().left ?? 0,
+                  minWidth: 200,
+                  paddingTop: 6,
+                  paddingBottom: 6,
+                }}
               >
-                <span className="hdr-action-line1">{t('helloUser', { name: username })}</span>
-                <span className="hdr-action-line2">{t('accountAndLists')} ▾</span>
-                <span className="hdr-action-icon" style={{ display: 'none', fontSize: 26 }}>👤</span>
-              </button>
-              {showAccountMenu && (
-                <div
-                  className="hdr-dropdown"
-                  style={{
-                    top: (accountMenuRef.current?.getBoundingClientRect().bottom ?? 56) + 4,
-                    right: Math.max(0, window.innerWidth - (accountMenuRef.current?.getBoundingClientRect().right ?? 0)),
-                    width: 380,
-                    paddingBottom: 8,
-                  }}
-                  onMouseLeave={() => setShowAccountMenu(false)}
+                <div className="hdr-dd-heading">Select Language</div>
+                {availableLangs.map(l => (
+                  <button
+                    key={l.code}
+                    className="hdr-dd-item"
+                    style={lang === l.code ? { fontWeight: 700, color: '#FF9900', background: '#fff8ee' } : {}}
+                    onClick={() => { switchLang(l.code); setShowLangMenu(false) }}
+                  >
+                    {l.flag} &nbsp;{l.name}
+                    {lang === l.code && <span style={{ marginLeft: 8, color: '#FF9900' }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right actions */}
+          <div className="hdr-actions">
+            {/* Account dropdown */}
+            {isAuthenticated ? (
+              <div ref={accountMenuRef} style={{ position: 'relative' }}>
+                <button
+                  className="hdr-action"
+                  onClick={() => setShowAccountMenu(p => !p)}
+                  onMouseEnter={() => setShowAccountMenu(true)}
                 >
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-                    <div>
-                      <div className="hdr-dd-heading">Your Account</div>
-                      <button className="hdr-dd-item" onClick={() => { navigate('/account'); setShowAccountMenu(false) }}>Your Account</button>
-                      <button className="hdr-dd-item" onClick={() => { navigate('/orders'); setShowAccountMenu(false) }}>Your Orders</button>
-                      <button className="hdr-dd-item" onClick={() => { navigate('/wishlist'); setShowAccountMenu(false) }}>Wish List</button>
-                      <button className="hdr-dd-item" onClick={() => { navigate('/recommendations'); setShowAccountMenu(false) }}>Recommendations</button>
+                  <span className="hdr-action-line1">{t('helloUser', { name: username })}</span>
+                  <span className="hdr-action-line2">{t('accountAndLists')} ▾</span>
+                  <span className="hdr-action-icon" style={{ display: 'none', fontSize: 20 }}>👤</span>
+                </button>
+                {showAccountMenu && (
+                  <div
+                    className="hdr-dropdown"
+                    style={{
+                      top: (accountMenuRef.current?.getBoundingClientRect().bottom ?? 56) + 4,
+                      right: Math.max(0, window.innerWidth - (accountMenuRef.current?.getBoundingClientRect().right ?? 0)),
+                      width: 380,
+                      paddingBottom: 8,
+                    }}
+                    onMouseLeave={() => setShowAccountMenu(false)}
+                  >
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                      <div>
+                        <div className="hdr-dd-heading">Your Account</div>
+                        <button className="hdr-dd-item" onClick={() => { navigate('/account'); setShowAccountMenu(false) }}>Your Account</button>
+                        <button className="hdr-dd-item" onClick={() => { navigate('/orders'); setShowAccountMenu(false) }}>Your Orders</button>
+                        <button className="hdr-dd-item" onClick={() => { navigate('/wishlist'); setShowAccountMenu(false) }}>Wish List</button>
+                        <button className="hdr-dd-item" onClick={() => { navigate('/recommendations'); setShowAccountMenu(false) }}>Recommendations</button>
+                      </div>
+                      <div>
+                        <div className="hdr-dd-heading">Your Lists</div>
+                        <button className="hdr-dd-item" onClick={() => { navigate('/wishlist'); setShowAccountMenu(false) }}>Your Wish List</button>
+                        <button className="hdr-dd-item" onClick={() => { navigate('/browsing-history'); setShowAccountMenu(false) }}>Browsing History</button>
+                        {user?.role === 'seller' && <button className="hdr-dd-item" style={{ color: '#c45500', fontWeight: 600 }} onClick={() => { navigate('/seller'); setShowAccountMenu(false) }}>Seller Central</button>}
+                        {user?.role === 'admin' && <button className="hdr-dd-item" style={{ color: '#c00', fontWeight: 600 }} onClick={() => { navigate('/admin'); setShowAccountMenu(false) }}>Admin Dashboard</button>}
+                        {user?.role === 'manager' && <button className="hdr-dd-item" style={{ color: '#0066c0', fontWeight: 600 }} onClick={() => { navigate('/manager'); setShowAccountMenu(false) }}>Manager Portal</button>}
+                      </div>
                     </div>
-                    <div>
-                      <div className="hdr-dd-heading">Your Lists</div>
-                      <button className="hdr-dd-item" onClick={() => { navigate('/wishlist'); setShowAccountMenu(false) }}>Your Wish List</button>
-                      <button className="hdr-dd-item" onClick={() => { navigate('/browsing-history'); setShowAccountMenu(false) }}>Browsing History</button>
-                      {user?.role === 'seller' && <button className="hdr-dd-item" style={{ color: '#c45500', fontWeight: 600 }} onClick={() => { navigate('/seller'); setShowAccountMenu(false) }}>Seller Central</button>}
-                      {user?.role === 'admin' && <button className="hdr-dd-item" style={{ color: '#c00', fontWeight: 600 }} onClick={() => { navigate('/admin'); setShowAccountMenu(false) }}>Admin Dashboard</button>}
-                      {user?.role === 'manager' && <button className="hdr-dd-item" style={{ color: '#0066c0', fontWeight: 600 }} onClick={() => { navigate('/manager'); setShowAccountMenu(false) }}>Manager Portal</button>}
-                    </div>
+                    <hr className="hdr-dd-sep" />
+                    <button className="hdr-dd-item" onClick={handleLogout}>Sign Out</button>
                   </div>
-                  <hr className="hdr-dd-sep" />
-                  <button className="hdr-dd-item" onClick={handleLogout}>Sign Out</button>
-                </div>
-              )}
-            </div>
-          ) : (
-              <Link to="/login" className="hdr-action">
-                <span className="hdr-action-line1">{t('helloSignIn')}</span>
-                <span className="hdr-action-line2">{t('accountAndLists')} ▾</span>
-                <span className="hdr-action-icon" style={{ display: 'none', fontSize: 26 }}>👤</span>
-              </Link>
-          )}
+                )}
+              </div>
+            ) : (
+                <Link to="/login" className="hdr-action">
+                  <span className="hdr-action-line1">{t('helloSignIn')}</span>
+                  <span className="hdr-action-line2">{t('accountAndLists')} ▾</span>
+                  <span className="hdr-action-icon" style={{ display: 'none', fontSize: 20 }}>👤</span>
+                </Link>
+            )}
 
-          {/* Returns & Orders */}
-          <Link to="/orders" className="hdr-action hdr-orders">
-            <span className="hdr-action-line1">{t('returns')}</span>
-            <span className="hdr-action-line2">&amp; {t('orders')}</span>
-          </Link>
-
-          {/* Notifications */}
-          {isAuthenticated && (
-            <div className="hdr-notifications" style={{ display: 'flex', alignItems: 'center', padding: '0 4px' }}>
-              <NotificationCenter />
-            </div>
-          )}
-
-          {/* Wishlist */}
-          {isAuthenticated && (
-            <Link to="/wishlist" className="hdr-action hdr-wishlist" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 24, lineHeight: 1 }}>♡</span>
-              <span className="hdr-action-line2">Wishlist</span>
+            {/* Returns & Orders */}
+            <Link to="/orders" className="hdr-action hdr-orders">
+              <span className="hdr-action-line1">{t('returns')}</span>
+              <span className="hdr-action-line2">&amp; {t('orders')}</span>
             </Link>
-          )}
 
-          <Link to="/cart" className="hdr-cart">
-            <div className="hdr-cart-wrap">
-              <span className="hdr-cart-count">{cartCount > 99 ? '99+' : cartCount}</span>
-              <svg width="32" height="24" viewBox="0 0 32 24" fill="none">
-                <path d="M2 2h3l3.5 12h12l2.5-8H8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="12" cy="20" r="1.5" fill="white" />
-                <circle cx="22" cy="20" r="1.5" fill="white" />
-              </svg>
-              <span className="hdr-cart-label">{t('basket')}</span>
-            </div>
-          </Link>
+            {/* Notifications */}
+            {isAuthenticated && (
+              <div className="hdr-notifications" style={{ display: 'flex', alignItems: 'center', padding: '0 4px' }}>
+                <NotificationCenter />
+              </div>
+            )}
+
+            {/* Wishlist */}
+            {isAuthenticated && (
+              <Link to="/wishlist" className="hdr-action hdr-wishlist" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 20, lineHeight: 1 }}>♡</span>
+                <span className="hdr-action-line2">Wishlist</span>
+              </Link>
+            )}
+
+            {/* Cart */}
+            <Link to="/cart" className="hdr-cart">
+              <div className="hdr-cart-wrap">
+                <span className="hdr-cart-count">{cartCount > 99 ? '99+' : cartCount}</span>
+                <svg width="32" height="24" viewBox="0 0 32 24" fill="none">
+                  <path d="M2 2h3l3.5 12h12l2.5-8H8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="12" cy="20" r="1.5" fill="white" />
+                  <circle cx="22" cy="20" r="1.5" fill="white" />
+                </svg>
+                <span className="hdr-cart-label">{t('basket')}</span>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
 
