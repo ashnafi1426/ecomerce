@@ -120,7 +120,7 @@ const Header = () => {
         .hdr-top a:hover { color: #fff; text-decoration: underline; }
 
         /* ── Main bar ── */
-        .hdr-main { background: #131921; padding: 12px 16px; display: flex; align-items: center; gap: 8px; transition: box-shadow .2s; max-width: 1500px; margin: 0 auto; }
+        .hdr-main { background: #131921; padding: 12px 16px; display: flex; align-items: center; gap: 8px; transition: box-shadow .2s; max-width: 1500px; margin: 0 auto; width: 100%; box-sizing: border-box; }
         .hdr-main.scrolled { box-shadow: 0 4px 20px rgba(0,0,0,.7); }
 
         /* ── Logo ── */
@@ -144,7 +144,7 @@ const Header = () => {
         .hdr-deliver-line2 { font-size: 15px; font-weight: 700; color: #fff; }
 
         /* ── Search bar ── */
-        .hdr-search { flex: 2; display: flex; height: 58px; border-radius: 6px; overflow: hidden; min-width: 300px; max-width: none; margin: 0 8px; }
+        .hdr-search { flex: 1; display: flex; height: 58px; border-radius: 6px; overflow: hidden; min-width: 300px; max-width: 800px; margin: 0 8px; }
         .hdr-search-cat { background: #F3F3F3; border: none; padding: 0 8px 0 12px; font-size: 14px; color: #555; cursor: pointer; border-right: 1px solid #cdcdcd; min-width: 60px; max-width: 140px; flex-shrink: 0; }
         .hdr-search-cat:hover { background: #e6e6e6; }
         .hdr-search-input { flex: 1; border: none; padding: 0 16px; font-size: 16px; color: #111; outline: none; min-width: 0; background: #fff; width: 100%; }
@@ -153,8 +153,8 @@ const Header = () => {
         .hdr-search-btn:hover { background: #e67e00; }
 
         /* ── Right actions ── */
-        .hdr-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; max-width: 400px; }
-        .hdr-action { padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; text-align: left; text-decoration: none; display: flex; flex-direction: column; }
+        .hdr-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; min-width: fit-content; }
+        .hdr-action { padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; text-align: left; text-decoration: none; display: flex; flex-direction: column; min-width: fit-content; }
         .hdr-action:hover { border-color: #fff; }
         .hdr-action-line1 { font-size: 13px; color: #ccc; white-space: nowrap; }
         .hdr-action-line2 { font-size: 15px; font-weight: 700; white-space: nowrap; }
@@ -199,6 +199,7 @@ const Header = () => {
           .hdr-deliver { display: none; } 
           .hdr-lang { display: none !important; }
           .hdr-main { gap: 12px; }
+          .hdr-search { max-width: 600px; }
         }
         @media (max-width: 899px) {
           .hdr-main { padding: 10px 16px; gap: 10px; }
@@ -206,6 +207,7 @@ const Header = () => {
           .hdr-cart-label { display: none; }
           .hdr-search-cat { min-width: 60px; max-width: 120px; padding: 0 6px 0 8px; }
           .hdr-search-btn { padding: 0 18px; min-width: 50px; }
+          .hdr-search { max-width: 500px; }
         }
         @media (max-width: 767px) {
           .hdr-top { display: none; }
@@ -221,15 +223,31 @@ const Header = () => {
           .hdr-logo-name { font-size: 22px; }
           .hdr-search-input { padding: 0 12px; }
           .hdr-search-btn { padding: 0 16px; min-width: 45px; }
+          .hdr-search { min-width: 200px; max-width: none; }
         }
         @media (max-width: 479px) {
           .hdr-main { padding: 8px 10px; gap: 6px; }
           .hdr-logo-name { font-size: 20px; }
-          .hdr-search { height: 44px; }
+          .hdr-search { height: 44px; min-width: 150px; }
           .hdr-search-btn { padding: 0 14px; min-width: 40px; }
           .hdr-search-input { padding: 0 10px; }
         }
       `}</style>
+
+      {/* ── Top bar ── */}
+      <div className="hdr-top">
+        <div className="hdr-top-inner">
+          <span>Free shipping on orders over $35</span>
+          <span>•</span>
+          <Link to="/customer-service">Customer Service</Link>
+          <span>•</span>
+          <Link to="/seller/register">Sell</Link>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 16 }}>
+            <Link to="/prime">Try Prime</Link>
+            <Link to="/deals">Today's Deals</Link>
+          </div>
+        </div>
+      </div>
 
 
 
