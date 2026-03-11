@@ -29,13 +29,28 @@ const ManagerSellerApprovalsPage = () => {
   };
 
   const handleApprove = async (sellerId) => {
+    if (!window.confirm('Are you sure you want to approve this seller application?')) {
+      return;
+    }
+
     try {
-      await managerAPI.approveSeller(sellerId, {});
+      await managerAPI.approveSeller(sellerId, {
+        seller_verification_status: 'verified',
+        verification_notes: 'Approved by manager',
+        verified_at: new Date().toISOString()
+      });
       toast.success('Seller approved successfully');
       fetchSellers();
     } catch (err) {
       console.error('Error approving seller:', err);
-      toast.error(err.message || 'Failed to approve seller');
+      
+      if (err.message?.includes('check constraint')) {
+        toast.error('Invalid verification status. Please contact system administrator.');
+      } else if (err.message?.includes('seller_verification_status_check')) {
+        toast.error('Database constraint error: Please use valid status values (pending, verified, rejected).');
+      } else {
+        toast.error(err.message || 'Failed to approve seller');
+      }
     }
   };
 
@@ -44,12 +59,21 @@ const ManagerSellerApprovalsPage = () => {
     if (!reason) return;
 
     try {
-      await managerAPI.rejectSeller(sellerId, { reason });
+      await managerAPI.rejectSeller(sellerId, { 
+        seller_verification_status: 'rejected',
+        rejection_reason: reason,
+        rejected_at: new Date().toISOString()
+      });
       toast.success('Seller application rejected');
       fetchSellers();
     } catch (err) {
       console.error('Error rejecting seller:', err);
-      toast.error(err.message || 'Failed to reject seller');
+      
+      if (err.message?.includes('check constraint')) {
+        toast.error('Invalid verification status. Please contact system administrator.');
+      } else {
+        toast.error(err.message || 'Failed to reject seller');
+      }
     }
   };
 
@@ -71,7 +95,6 @@ const ManagerSellerApprovalsPage = () => {
         <p className="text-[#565959]">Review and approve seller applications</p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg border border-[#D5D9D9]">
           <div className="text-4xl font-bold text-[#FF9900] mb-2">
@@ -99,7 +122,6 @@ const ManagerSellerApprovalsPage = () => {
         </div>
       </div>
 
-      {/* Sellers Table */}
       <div className="bg-white rounded-lg border border-[#D5D9D9] overflow-hidden">
         {error ? (
           <div className="text-center py-12">

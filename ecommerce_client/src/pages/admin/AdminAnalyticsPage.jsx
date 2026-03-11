@@ -132,7 +132,12 @@ const AdminAnalyticsPage = () => {
           console.warn('⚠️ Revenue response has unexpected structure:', revenueResponse)
         }
       } catch (err) {
-        console.error('❌ Revenue overview error:', err)
+        // Handle 404s quietly for analytics endpoints that may not exist
+        if (err.response?.status === 404) {
+          console.log('ℹ️ Revenue overview endpoint not available (404)')
+        } else {
+          console.error('❌ Revenue overview error:', err)
+        }
       }
       
       // Fetch revenue by category
@@ -166,7 +171,12 @@ const AdminAnalyticsPage = () => {
           console.warn('⚠️ Category response has unexpected structure:', categoryResponse)
         }
       } catch (err) {
-        console.error('❌ Category revenue error:', err)
+        // Handle 404s quietly for analytics endpoints that may not exist
+        if (err.response?.status === 404) {
+          console.log('ℹ️ Category revenue endpoint not available (404)')
+        } else {
+          console.error('❌ Category revenue error:', err)
+        }
       }
       
       // Fetch customer statistics
@@ -185,7 +195,12 @@ const AdminAnalyticsPage = () => {
           console.warn('⚠️ Customer response has unexpected structure:', customerResponse)
         }
       } catch (err) {
-        console.error('❌ Customer statistics error:', err)
+        // Handle 404s quietly for analytics endpoints that may not exist
+        if (err.response?.status === 404) {
+          console.log('ℹ️ Customer statistics endpoint not available (404)')
+        } else {
+          console.error('❌ Customer statistics error:', err)
+        }
       }
       
       // Fetch inventory overview
@@ -204,7 +219,12 @@ const AdminAnalyticsPage = () => {
           console.warn('⚠️ Inventory response has unexpected structure:', inventoryResponse)
         }
       } catch (err) {
-        console.error('❌ Inventory overview error:', err)
+        // Handle 404s quietly for analytics endpoints that may not exist
+        if (err.response?.status === 404) {
+          console.log('ℹ️ Inventory overview endpoint not available (404)')
+        } else {
+          console.error('❌ Inventory overview error:', err)
+        }
       }
       
       console.log('✅ All analytics data loaded successfully')

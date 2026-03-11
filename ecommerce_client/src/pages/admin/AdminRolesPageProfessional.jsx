@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api.service';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import { FaUsers, FaUserShield, FaStore, FaShoppingCart, FaPlus, FaEye, FaSearch, FaTimes, FaCheck, FaCrown, FaBriefcase } from 'react-icons/fa';
 
 const AdminRolesPageProfessional = () => {

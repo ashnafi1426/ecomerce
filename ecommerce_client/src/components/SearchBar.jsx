@@ -118,7 +118,6 @@ const SearchBar = ({ onSearch, placeholder = "Search FastShop..." }) => {
   const handleSuggestionClick = (suggestion) => {
     setSearchQuery(suggestion.text);
     if (suggestion.type === 'category') {
-      // Navigate directly to category page
       navigate(`/category/${encodeURIComponent(suggestion.text.toLowerCase())}`);
     } else {
       executeSearch(suggestion.text);
@@ -160,243 +159,317 @@ const SearchBar = ({ onSearch, placeholder = "Search FastShop..." }) => {
   ];
 
   return (
-    <div className="relative w-full responsive-container">
-      {/* Main Search Bar */}
-      <form onSubmit={handleSearch} className="relative">
-        <div className="flex bg-white rounded-lg shadow-lg border-2 border-gray-200 focus-within:border-orange-400 transition-colors responsive-flex-row">
-          {/* Category Dropdown */}
-          <div className="relative mobile-hide">
-            <button
-              type="button"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center responsive-gap px-3 md:px-4 py-2 md:py-3 bg-gray-50 hover:bg-gray-100 rounded-l-lg border-r border-gray-200 transition-colors min-w-[100px] md:min-w-[140px]"
-            >
-              <span className="text-base md:text-lg">{selectedCategory.icon}</span>
-              <span className="responsive-body-sm font-medium text-gray-700 hidden sm:block">
-                {selectedCategory.name.split(' ')[0]}
-              </span>
-              <svg className="w-3 h-3 md:w-4 md:h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* Category Dropdown Menu */}
-            {isExpanded && (
-              <div className="absolute top-full left-0 mt-1 w-56 md:w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                <div className="py-2">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCategory(category);
-                        setIsExpanded(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-50 transition-colors responsive-body-sm ${selectedCategory.id === category.id ? 'bg-orange-50 text-orange-600' : 'text-gray-700'
-                        }`}
-                    >
-                      <span className="text-base md:text-lg">{category.icon}</span>
-                      <span className="font-medium">{category.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Search Input */}
-          <div className="flex-1 relative">
-            <input
-              ref={inputRef}
-              type="text"
-              value={searchQuery}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              placeholder={placeholder}
-              autoComplete="off"
-              className="responsive-input w-full bg-transparent border-0 focus:ring-0"
-            />
-
-            {/* Autocomplete Suggestions Dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div
-                ref={suggestionsRef}
-                className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden"
-              >
-                {loadingSuggestions && (
-                  <div className="px-4 py-2 text-xs text-gray-400">Loading...</div>
-                )}
-                {suggestions.map((s, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()} // keep input focused
-                    onClick={() => handleSuggestionClick(s)}
-                    className={`w-full flex items-center gap-3 px-4 py-2 text-left text-sm transition-colors ${i === activeSuggestion ? 'bg-orange-50 text-orange-700' : 'hover:bg-gray-50 text-gray-800'
-                      }`}
-                  >
-                    <span className="text-base flex-shrink-0">{SUGGESTION_ICONS[s.type] || '🔍'}</span>
-                    <span className="flex-1 truncate">{s.text}</span>
-                    <span className="text-xs text-gray-400 capitalize">{s.type}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Search Button */}
-          <button
-            type="submit"
-            className="responsive-btn bg-orange-400 hover:bg-orange-500 text-white rounded-r-lg transition-colors flex items-center responsive-gap"
-          >
-            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <span className="hidden sm:block font-medium responsive-body-sm">Search</span>
-          </button>
-        </div>
-      </form>
-
-      {/* Popular Searches */}
-      <div className="mt-3 md:mt-4 flex flex-wrap gap-2 mobile-hide">
-        <span className="responsive-body-sm text-gray-600 font-medium">Popular:</span>
-        {popularSearches.slice(0, 6).map((search, index) => (
-          <button
-            key={index}
-            onClick={() => handleQuickSearch(search)}
-            className="responsive-body-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-          >
-            {search}
-          </button>
-        ))}
-      </div>
-
-      {/* Click outside to close dropdowns */}
-      {(isExpanded || showSuggestions) && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => { setIsExpanded(false); setShowSuggestions(false); }}
-        />
-      )}
-    </div>
-  );
-};
-
-export default SearchBar;
-
-const getCategoryEmoji = (name) => {
-  const lower = (name || '').toLowerCase();
-  if (lower.includes('electronics') || lower.includes('tech')) return '📱';
-  if (lower.includes('fashion') || lower.includes('clothing')) return '👗';
-  if (lower.includes('home') || lower.includes('kitchen') || lower.includes('garden')) return '🏠';
-  if (lower.includes('sports') || lower.includes('fitness')) return '⚽';
-  if (lower.includes('books')) return '📚';
-  if (lower.includes('toys') || lower.includes('games')) return '🧸';
-  if (lower.includes('beauty') || lower.includes('health')) return '💄';
-  if (lower.includes('automotive') || lower.includes('car')) return '🚗';
-  if (lower.includes('gold') || lower.includes('jewel')) return '💍';
-  return '📦';
-};
-
-const SearchBar = ({ onSearch, placeholder = "Search FastShop..." }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
-  const navigate = useNavigate();
-
-  const defaultAll = { id: 'all', name: 'All Categories', icon: '🔍' };
-  const [categories, setCategories] = useState([defaultAll]);
-  const [selectedCategory, setSelectedCategory] = useState(defaultAll);
-
-  // Fetch real categories from API
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await customerAPI.getCategories();
-        const cats = response?.data || response || [];
-        const apiCats = (Array.isArray(cats) ? cats : []).map(c => ({
-          id: c.slug || c.name,
-          name: c.name,
-          icon: getCategoryEmoji(c.name)
-        }));
-        setCategories([defaultAll, ...apiCats]);
-      } catch (err) {
-        // Keep fallback categories
-        setCategories([
-          defaultAll,
-          { id: 'electronics', name: 'Electronics', icon: '📱' },
-          { id: 'fashion', name: 'Fashion', icon: '👗' },
-          { id: 'home', name: 'Home & Kitchen', icon: '🏠' },
-          { id: 'sports', name: 'Sports & Fitness', icon: '⚽' },
-          { id: 'books', name: 'Books', icon: '📚' },
-        ]);
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      const searchParams = {
-        query: searchQuery.trim(),
-        category: selectedCategory.id !== 'all' ? selectedCategory.id : undefined
-      };
-      
-      if (onSearch) {
-        onSearch(searchParams);
-      } else {
-        // Navigate to search results page
-        const params = new URLSearchParams();
-        params.set('q', searchParams.query);
-        if (searchParams.category) {
-          params.set('category', searchParams.category);
+    <>
+      {/* Amazon-style CSS */}
+      <style>{`
+        .amazon-search-container {
+          position: relative;
+          width: 100%;
+          max-width: 100%;
+          flex: 1;
+          margin: 0 16px;
         }
-        navigate(`/search?${params.toString()}`);
-      }
-    }
-  };
+        
+        .amazon-search-form {
+          display: flex;
+          background: white;
+          border-radius: 4px;
+          overflow: hidden;
+          box-shadow: 0 2px 5px rgba(15,17,17,.15);
+          border: 1px solid #cdcdcd;
+          transition: all 0.15s ease;
+          width: 100%;
+        }
+        
+        .amazon-search-form:focus-within {
+          border-color: #ff9900;
+          box-shadow: 0 0 0 3px rgba(255,153,0,0.2), 0 2px 5px rgba(15,17,17,.15);
+        }
+        
+        .amazon-category-dropdown {
+          position: relative;
+          background: #f3f3f3;
+          border-right: 1px solid #cdcdcd;
+          min-width: 60px;
+          flex-shrink: 0;
+        }
+        
+        .amazon-category-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 12px;
+          background: #f3f3f3;
+          border: none;
+          cursor: pointer;
+          font-size: 12px;
+          color: #0f1111;
+          height: 40px;
+          transition: background-color 0.15s ease;
+          white-space: nowrap;
+          min-width: 60px;
+          width: 100%;
+        }
+        
+        .amazon-category-btn:hover {
+          background: #e3e6e6;
+        }
+        
+        .amazon-search-input {
+          flex: 1;
+          border: none;
+          outline: none;
+          padding: 8px 12px;
+          font-size: 16px;
+          color: #0f1111;
+          background: white;
+          height: 40px;
+          min-width: 0;
+          width: 100%;
+        }
+        
+        .amazon-search-input::placeholder {
+          color: #767676;
+          font-size: 14px;
+        }
+        
+        .amazon-search-btn {
+          background: #ff9900;
+          border: none;
+          padding: 8px 16px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background-color 0.15s ease;
+          min-width: 50px;
+          height: 40px;
+          flex-shrink: 0;
+        }
+        
+        .amazon-search-btn:hover {
+          background: #fa8900;
+        }
+        
+        .amazon-search-icon {
+          width: 20px;
+          height: 20px;
+          color: #0f1111;
+        }
+        
+        .amazon-dropdown-menu {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background: white;
+          border: 1px solid #cdcdcd;
+          border-top: none;
+          border-radius: 0 0 4px 4px;
+          box-shadow: 0 2px 5px rgba(15,17,17,.15);
+          z-index: 1000;
+          max-height: 300px;
+          overflow-y: auto;
+        }
+        
+        .amazon-dropdown-item {
+          display: flex;
+          align-items: center;
+          padding: 8px 12px;
+          border: none;
+          background: white;
+          width: 100%;
+          text-align: left;
+          cursor: pointer;
+          font-size: 13px;
+          color: #0f1111;
+          transition: background-color 0.15s ease;
+        }
+        
+        .amazon-dropdown-item:hover,
+        .amazon-dropdown-item.active {
+          background: #f3f3f3;
+        }
+        
+        .amazon-suggestions {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background: white;
+          border: 1px solid #cdcdcd;
+          border-top: none;
+          border-radius: 0 0 4px 4px;
+          box-shadow: 0 2px 5px rgba(15,17,17,.15);
+          z-index: 1000;
+          max-height: 400px;
+          overflow-y: auto;
+        }
+        
+        .amazon-suggestion-item {
+          display: flex;
+          align-items: center;
+          padding: 8px 12px;
+          border: none;
+          background: white;
+          width: 100%;
+          text-align: left;
+          cursor: pointer;
+          font-size: 14px;
+          color: #0f1111;
+          transition: background-color 0.15s ease;
+          gap: 8px;
+        }
+        
+        .amazon-suggestion-item:hover,
+        .amazon-suggestion-item.active {
+          background: #f3f3f3;
+        }
+        
+        .amazon-popular-searches {
+          margin-top: 8px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+        }
+        
+        .amazon-popular-label {
+          font-size: 12px;
+          color: #565959;
+          font-weight: 400;
+        }
+        
+        .amazon-popular-link {
+          font-size: 12px;
+          color: #007185;
+          text-decoration: none;
+          cursor: pointer;
+        }
+        
+        .amazon-popular-link:hover {
+          color: #c7511f;
+          text-decoration: underline;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+          .amazon-search-container {
+            margin: 0 8px;
+          }
+          
+          .amazon-category-dropdown {
+            min-width: 50px;
+          }
+          
+          .amazon-category-btn {
+            padding: 8px 8px;
+            min-width: 50px;
+          }
+          .amazon-category-text {
+            display: none;
+          }
+          .amazon-search-input {
+            font-size: 16px; /* Prevent zoom on iOS */
+            padding: 8px 10px;
+          }
+          .amazon-search-btn {
+            padding: 8px 12px;
+            min-width: 45px;
+          }
+          .amazon-popular-searches {
+            display: none;
 
-  const handleQuickSearch = (query) => {
-    setSearchQuery(query);
-    const searchParams = { query, category: undefined };
-    if (onSearch) {
-      onSearch(searchParams);
-    } else {
-      navigate(`/search?q=${encodeURIComponent(query)}`);
-    }
-  };
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .amazon-search-container {
+            margin: 0 4px;
+          }
+          
+          .amazon-category-btn {
+            padding: 8px 6px;
+            min-width: 45px;
+          }
+          
+          .amazon-search-input {
+            padding: 8px 8px;
+          }
+          
+          .amazon-search-btn {
+            padding: 8px 10px;
+            min-width: 40px;
+          }
+          
+          .amazon-search-icon {
+            width: 18px;
+            height: 18px;
+          }
+        }
+        
+        /* Tablet */
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .amazon-search-container {
+            margin: 0 12px;
+          }
+          
+          .amazon-category-btn {
+            padding: 8px 14px;
+            min-width: 80px;
+          }
+          
+          .amazon-search-input {
+            padding: 8px 12px;
+          }
+          
+          .amazon-search-btn {
+            padding: 8px 14px;
+          }
+        }
+        
+        /* Desktop */
+        @media (min-width: 1025px) {
+          .amazon-search-container {
+            margin: 0 20px;
+            max-width: 800px;
+          }
+          
+          .amazon-category-btn {
+            min-width: 120px;
+            padding: 8px 16px;
+          }
+          
+          .amazon-search-btn {
+            padding: 8px 20px;
+            min-width: 60px;
+          }
+        }
+      `}</style>
 
-  const popularSearches = [
-    'iPhone', 'Laptop', 'Headphones', 'Nike Shoes', 'Samsung TV',
-    'Coffee Maker', 'Bluetooth Speaker', 'Gaming Chair'
-  ];
+      <div className="amazon-search-container">
+        {/* Main Search Bar */}
+        <form onSubmit={handleSearch} className="relative">
+          <div className="amazon-search-form">
+            {/* Category Dropdown */}
+            <div className="amazon-category-dropdown">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="amazon-category-btn"
+              >
+                <span className="text-sm">{selectedCategory.icon}</span>
+                <span className="amazon-category-text ml-1 hidden sm:inline">
+                  {selectedCategory.name === 'All Categories' ? 'All' : selectedCategory.name.split(' ')[0]}
+                </span>
+                <svg className="w-3 h-3 ml-1 hidden sm:inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
-  return (
-    <div className="relative w-full responsive-container">
-      {/* Main Search Bar */}
-      <form onSubmit={handleSearch} className="relative">
-        <div className="flex bg-white rounded-lg shadow-lg border-2 border-gray-200 focus-within:border-orange-400 transition-colors responsive-flex-row">
-          {/* Category Dropdown */}
-          <div className="relative mobile-hide">
-            <button
-              type="button"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center responsive-gap px-3 md:px-4 py-2 md:py-3 bg-gray-50 hover:bg-gray-100 rounded-l-lg border-r border-gray-200 transition-colors min-w-[100px] md:min-w-[140px]"
-            >
-              <span className="text-base md:text-lg">{selectedCategory.icon}</span>
-              <span className="responsive-body-sm font-medium text-gray-700 hidden sm:block">
-                {selectedCategory.name.split(' ')[0]}
-              </span>
-              <svg className="w-3 h-3 md:w-4 md:h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* Category Dropdown Menu */}
-            {isExpanded && (
-              <div className="absolute top-full left-0 mt-1 w-56 md:w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                <div className="py-2">
+              {/* Category Dropdown Menu */}
+              {isExpanded && (
+                <div className="amazon-dropdown-menu">
                   {categories.map((category) => (
                     <button
                       key={category.id}
@@ -405,63 +478,85 @@ const SearchBar = ({ onSearch, placeholder = "Search FastShop..." }) => {
                         setSelectedCategory(category);
                         setIsExpanded(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-50 transition-colors responsive-body-sm ${
-                        selectedCategory.id === category.id ? 'bg-orange-50 text-orange-600' : 'text-gray-700'
-                      }`}
+                      className={`amazon-dropdown-item ${selectedCategory.id === category.id ? 'active' : ''}`}
                     >
-                      <span className="text-base md:text-lg">{category.icon}</span>
-                      <span className="font-medium">{category.name}</span>
+                      <span className="text-sm mr-2">{category.icon}</span>
+                      <span>{category.name}</span>
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Search Input */}
+            <div className="flex-1 relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchQuery}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                placeholder={placeholder}
+                autoComplete="off"
+                className="amazon-search-input"
+              />
+
+              {/* Autocomplete Suggestions */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div ref={suggestionsRef} className="amazon-suggestions">
+                  {loadingSuggestions && (
+                    <div className="px-3 py-2 text-xs text-gray-500">Loading...</div>
+                  )}
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSuggestionClick(s)}
+                      className={`amazon-suggestion-item ${i === activeSuggestion ? 'active' : ''}`}
+                    >
+                      <span className="text-sm">{SUGGESTION_ICONS[s.type] || '🔍'}</span>
+                      <span className="flex-1 truncate">{s.text}</span>
+                      <span className="text-xs text-gray-500 capitalize">{s.type}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Search Button */}
+            <button type="submit" className="amazon-search-btn">
+              <svg className="amazon-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
           </div>
+        </form>
 
-          {/* Search Input */}
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={placeholder}
-            className="responsive-input flex-1 bg-transparent border-0 focus:ring-0"
-          />
-
-          {/* Search Button */}
-          <button
-            type="submit"
-            className="responsive-btn bg-orange-400 hover:bg-orange-500 text-white rounded-r-lg transition-colors flex items-center responsive-gap"
-          >
-            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <span className="hidden sm:block font-medium responsive-body-sm">Search</span>
-          </button>
+        {/* Popular Searches */}
+        <div className="amazon-popular-searches">
+          <span className="amazon-popular-label">Popular:</span>
+          {popularSearches.slice(0, 6).map((search, index) => (
+            <button
+              key={index}
+              onClick={() => handleQuickSearch(search)}
+              className="amazon-popular-link"
+            >
+              {search}
+            </button>
+          ))}
         </div>
-      </form>
 
-      {/* Popular Searches */}
-      <div className="mt-3 md:mt-4 flex flex-wrap gap-2 mobile-hide">
-        <span className="responsive-body-sm text-gray-600 font-medium">Popular:</span>
-        {popularSearches.slice(0, 6).map((search, index) => (
-          <button
-            key={index}
-            onClick={() => handleQuickSearch(search)}
-            className="responsive-body-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-          >
-            {search}
-          </button>
-        ))}
+        {/* Click outside to close dropdowns */}
+        {(isExpanded || showSuggestions) && (
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => { setIsExpanded(false); setShowSuggestions(false); }}
+          />
+        )}
       </div>
-
-      {/* Click outside to close dropdown */}
-      {isExpanded && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setIsExpanded(false)}
-        />
-      )}
-    </div>
+    </>
   );
 };
 

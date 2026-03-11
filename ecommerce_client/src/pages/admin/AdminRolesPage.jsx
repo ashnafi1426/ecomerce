@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api.service';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const AdminRolesPage = () => {
   const [roles, setRoles] = useState([]);
@@ -95,7 +95,7 @@ const AdminRolesPage = () => {
   };
 
   const handleCreateRole = () => {
-    toast.info('Create Custom Role feature coming soon!');
+    toast('Create Custom Role feature coming soon!', { icon: 'ℹ️' });
   };
 
   const handleViewRole = (role) => {
@@ -104,7 +104,7 @@ const AdminRolesPage = () => {
 
   const handleEditRole = (role) => {
     if (role.type === 'System Role') {
-      toast.warning('System roles cannot be edited');
+      toast('System roles cannot be edited', { icon: '⚠️' });
     } else {
       toast.success(`Editing ${role.name}`);
     }

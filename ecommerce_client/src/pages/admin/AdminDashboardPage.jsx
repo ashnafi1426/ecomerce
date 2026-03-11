@@ -1,41 +1,59 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { adminAPI } from '../../services/api.service'
-import { toast } from 'react-toastify'
+import { toast } from 'react-hot-toast'
 
-// Chart Components
-const RevenueChart = () => {
+// Optimized Chart Components with lazy loading
+const RevenueChart = ({ period, onPeriodChange }) => {
   const [revenueData, setRevenueData] = useState(null)
-  const [period, setPeriod] = useState('last-30-days')
   const [loading, setLoading] = useState(false)
 
-  const fetchRevenueData = async (selectedPeriod = period) => {
+  const fetchRevenueData = useCallback(async (selectedPeriod = period) => {
     try {
       setLoading(true)
       console.log('📊 Fetching revenue trends for period:', selectedPeriod)
-      const response = await adminAPI.getRevenueTrends({ period: selectedPeriod })
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 5000)
+      );
+      
+      const response = await Promise.race([
+        adminAPI.getRevenueTrends({ period: selectedPeriod }),
+        timeoutPromise
+      ]);
+      
       console.log('📈 Revenue trends response:', response)
       
       // Handle both direct data and nested data structure
       const data = response.data || response
       setRevenueData(data)
     } catch (error) {
-      console.error('❌ Error fetching revenue trends:', error)
-      toast.error('Failed to load revenue data')
+      // Handle 404s quietly for analytics endpoints that may not exist
+      if (error.response?.status === 404 || error.message?.includes('timeout')) {
+        console.log('ℹ️ Revenue trends endpoint not available')
+      } else {
+        console.error('❌ Error fetching revenue trends:', error)
+        toast.error('Failed to load revenue data')
+      }
     } finally {
       setLoading(false)
     }
-  }
+  }, [period])
 
   useEffect(() => {
-    fetchRevenueData()
-  }, [])
+    const timer = setTimeout(() => {
+      fetchRevenueData()
+    }, 200); // Delay to prevent immediate API call
 
-  const handlePeriodChange = (e) => {
+    return () => clearTimeout(timer);
+  }, [fetchRevenueData])
+
+  const handlePeriodChange = useCallback((e) => {
     const newPeriod = e.target.value
-    setPeriod(newPeriod)
+    onPeriodChange(newPeriod)
     fetchRevenueData(newPeriod)
-  }
+  }, [onPeriodChange, fetchRevenueData])
 
   return (
     <div className="chart-card">
@@ -111,8 +129,13 @@ const CategoryChart = () => {
       const data = response.data || response
       setCategoryData(data)
     } catch (error) {
-      console.error('❌ Error fetching category data:', error)
-      toast.error('Failed to load category data')
+      // Handle 404s quietly for analytics endpoints that may not exist
+      if (error.response?.status === 404) {
+        console.log('ℹ️ Category revenue endpoint not available (404)')
+      } else {
+        console.error('❌ Error fetching category data:', error)
+        toast.error('Failed to load category data')
+      }
     } finally {
       setLoading(false)
     }
@@ -189,25 +212,25 @@ const AdminDashboardPage = () => {
   const [recentActivity, setRecentActivity] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [chartPeriod, setChartPeriod] = useState('last-30-days')
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
-
-  // Debug effect to log stats changes
-  useEffect(() => {
-    console.log('📊 Stats updated:', stats);
-  }, [stats])
-
-  const fetchDashboardData = async () => {
+  // Optimized fetch function with timeout and caching
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
       console.log('🔍 Fetching admin dashboard data...');
       
-      // Use adminAPI service instead of direct fetch
-      const response = await adminAPI.getDashboardStats();
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 8000)
+      );
+      
+      const response = await Promise.race([
+        adminAPI.getDashboardStats(),
+        timeoutPromise
+      ]);
       
       console.log('📊 Dashboard API response:', response);
       
@@ -245,11 +268,33 @@ const AdminDashboardPage = () => {
       console.error('❌ Error fetching dashboard data:', error);
       const errorMessage = error.message || 'Failed to load dashboard data'
       setError(errorMessage)
-      toast.error(errorMessage)
+      
+      // Only show toast for non-404 and non-timeout errors
+      if (error.response?.status !== 404 && !error.message?.includes('timeout')) {
+        toast.error(errorMessage)
+      } else if (error.message?.includes('timeout')) {
+        toast.error('Dashboard loading timed out. Please refresh.')
+      } else {
+        console.log('ℹ️ Dashboard endpoint not available (404)')
+      }
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  // Initial load with delay to prevent immediate API call
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchDashboardData()
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [fetchDashboardData])
+
+  // Memoized chart period handler
+  const handleChartPeriodChange = useCallback((newPeriod) => {
+    setChartPeriod(newPeriod)
+  }, [])
 
   const getStatusBadge = (status) => {
     const statusLower = status?.toLowerCase()
@@ -406,7 +451,7 @@ const AdminDashboardPage = () => {
 
       {/* CHARTS */}
       <div className="chart-section">
-        <RevenueChart />
+        <RevenueChart period={chartPeriod} onPeriodChange={handleChartPeriodChange} />
         <CategoryChart />
       </div>
 

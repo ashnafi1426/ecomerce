@@ -2,8 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '../hooks/redux'
 import { logout } from '../store/slices/authSlice'
 import { toast } from 'react-toastify'
-import { useState } from 'react'
-import NotificationCenter from '../components/NotificationCenter'
+import { useState, useCallback, useMemo } from 'react'
 import ChatWidget from '../components/chat/ChatWidget'
 
 const AdminLayout = () => {
@@ -13,19 +12,90 @@ const AdminLayout = () => {
   const { user } = useAppSelector((state) => state.auth)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     dispatch(logout())
     toast.success('Logged out successfully')
     navigate('/login')
-  }
+  }, [dispatch, navigate])
 
-  const isActive = (path) => {
+  const isActive = useCallback((path) => {
     return location.pathname === path || location.pathname.startsWith(path + '/')
-  }
+  }, [location.pathname])
 
-  const closeMobileSidebar = () => {
+  const closeMobileSidebar = useCallback(() => {
     setShowMobileSidebar(false)
-  }
+  }, [])
+
+  // Memoized sidebar menu items to prevent re-renders
+  const sidebarSections = useMemo(() => [
+    {
+      title: 'Main',
+      items: [
+        { path: '/admin', icon: '📊', label: 'Dashboard', exact: true },
+        { path: '/admin/analytics', icon: '📈', label: 'Analytics' }
+      ]
+    },
+    {
+      title: 'Management',
+      items: [
+        { path: '/admin/users', icon: '👥', label: 'Users' },
+        { path: '/admin/customers', icon: '🛍️', label: 'Customers' },
+        { path: '/admin/sellers', icon: '🏪', label: 'Sellers' },
+        { path: '/admin/managers', icon: '👔', label: 'Managers' },
+        { path: '/admin/roles', icon: '🔐', label: 'Roles' },
+        { path: '/admin/products', icon: '📦', label: 'Products' },
+        { path: '/admin/product-approvals', icon: '✅', label: 'Product Approvals' },
+        { path: '/admin/orders', icon: '🛒', label: 'Orders' },
+        { path: '/admin/refunds', icon: '💸', label: 'Refunds' },
+        { path: '/admin/categories', icon: '📂', label: 'Categories' }
+      ]
+    },
+    {
+      title: 'Financial',
+      items: [
+        { path: '/admin/payments', icon: '💰', label: 'Payments' },
+        { path: '/admin/seller-earnings', icon: '💵', label: 'Seller Earnings' },
+        { path: '/admin/commission-settings', icon: '⚙️', label: 'Commission Settings' },
+        { path: '/admin/payouts', icon: '💳', label: 'Payouts' }
+      ]
+    },
+    {
+      title: 'System',
+      items: [
+        { path: '/admin/settings', icon: '⚙️', label: 'Settings' },
+        { path: '/admin/logs', icon: '📋', label: 'Audit Logs' },
+        { path: '/admin/reports', icon: '📄', label: 'Reports' }
+      ]
+    }
+  ], [])
+
+  // Memoized sidebar menu component
+  const SidebarMenu = useMemo(() => (
+    <>
+      {sidebarSections.map((section, sectionIndex) => (
+        <div key={sectionIndex} className="sidebar-section">
+          <div className="sidebar-section-title">{section.title}</div>
+          <ul className="sidebar-menu">
+            {section.items.map((item, itemIndex) => (
+              <li key={itemIndex}>
+                <Link 
+                  to={item.path} 
+                  className={
+                    item.exact 
+                      ? (location.pathname === item.path ? 'active' : '')
+                      : (isActive(item.path) ? 'active' : '')
+                  } 
+                  onClick={closeMobileSidebar}
+                >
+                  <span className="menu-icon">{item.icon}</span> {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </>
+  ), [sidebarSections, location.pathname, isActive, closeMobileSidebar])
 
   return (
     <div className="admin-layout-container">
@@ -117,7 +187,6 @@ const AdminLayout = () => {
           <Link to="/" className="logo">🛒 <span>FastShop Admin</span></Link>
         </div>
         <div className="user-menu">
-          <NotificationCenter />
           <div className="user-info">
             <div className="user-avatar">👤</div>
             <div>
@@ -133,124 +202,7 @@ const AdminLayout = () => {
       <div className="dashboard-layout">
         {/* SIDEBAR */}
         <aside className={`sidebar ${showMobileSidebar ? 'show' : ''}`}>
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">Main</div>
-            <ul className="sidebar-menu">
-              <li>
-                <Link to="/admin" className={isActive('/admin') && location.pathname === '/admin' ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">📊</span> Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/analytics" className={isActive('/admin/analytics') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">📈</span> Analytics
-                </Link>
-              </li>
-            </ul>
-          </div>
-          
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">Management</div>
-            <ul className="sidebar-menu">
-              <li>
-                <Link to="/admin/users" className={isActive('/admin/users') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">👥</span> Users
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/customers" className={isActive('/admin/customers') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">🛍️</span> Customers
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/sellers" className={isActive('/admin/sellers') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">🏪</span> Sellers
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/managers" className={isActive('/admin/managers') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">👔</span> Managers
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/roles" className={isActive('/admin/roles') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">🔐</span> Roles
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/products" className={isActive('/admin/products') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">📦</span> Products
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/product-approvals" className={isActive('/admin/product-approvals') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">✅</span> Product Approvals
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/orders" className={isActive('/admin/orders') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">🛒</span> Orders
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/refunds" className={isActive('/admin/refunds') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">💸</span> Refunds
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/categories" className={isActive('/admin/categories') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">📂</span> Categories
-                </Link>
-              </li>
-            </ul>
-          </div>
-          
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">Financial</div>
-            <ul className="sidebar-menu">
-              <li>
-                <Link to="/admin/payments" className={isActive('/admin/payments') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">💰</span> Payments
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/seller-earnings" className={isActive('/admin/seller-earnings') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">💵</span> Seller Earnings
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/commission-settings" className={isActive('/admin/commission-settings') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">⚙️</span> Commission Settings
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/payouts" className={isActive('/admin/payouts') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">💳</span> Payouts
-                </Link>
-              </li>
-            </ul>
-          </div>
-          
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">System</div>
-            <ul className="sidebar-menu">
-              <li>
-                <Link to="/admin/settings" className={isActive('/admin/settings') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">⚙️</span> Settings
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/logs" className={isActive('/admin/logs') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">📋</span> Audit Logs
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/reports" className={isActive('/admin/reports') ? 'active' : ''} onClick={closeMobileSidebar}>
-                  <span className="menu-icon">📄</span> Reports
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {SidebarMenu}
         </aside>
 
         {/* MAIN CONTENT */}

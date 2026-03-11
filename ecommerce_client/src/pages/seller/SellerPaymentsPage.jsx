@@ -71,7 +71,7 @@ const SellerPaymentsPage = () => {
         setPayouts(payoutsData.payouts || []);
       } else {
         console.error('Payouts API error:', payoutsData);
-        toast.warning(payoutsData.error || 'Could not load payout history');
+        toast(payoutsData.error || 'Could not load payout history', { icon: '⚠️' });
       }
       
     } catch (error) {

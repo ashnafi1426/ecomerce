@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { managerAPI } from '../../services/api.service';
+import { managerAPI, adminAPI } from '../../services/api.service';
 
 const ManagerReturnsPage = () => {
   const [returns, setReturns] = useState([]);
@@ -29,8 +29,11 @@ const ManagerReturnsPage = () => {
   };
 
   const handleApprove = async (returnId) => {
+    const refundAmount = prompt('Enter refund amount (or leave empty for full refund):');
+    
     try {
-      await managerAPI.approveReturn(returnId, {});
+      // Use the admin API method which expects refundAmount parameter
+      await adminAPI.approveReturn(returnId, refundAmount || 0);
       toast.success('Return approved successfully');
       fetchReturns();
     } catch (err) {
@@ -44,7 +47,8 @@ const ManagerReturnsPage = () => {
     if (!reason) return;
 
     try {
-      await managerAPI.rejectReturn(returnId, { reason });
+      // Use the admin API method which expects rejectionReason parameter
+      await adminAPI.rejectReturn(returnId, reason);
       toast.success('Return rejected');
       fetchReturns();
     } catch (err) {

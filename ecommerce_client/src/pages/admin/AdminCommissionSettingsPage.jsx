@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import { adminAPI } from '../../services/api.service';
 
 const AdminCommissionSettingsPage = () => {
@@ -76,9 +76,17 @@ const AdminCommissionSettingsPage = () => {
           setSettings(defaultSettings);
         }
       } catch (dbError) {
-        console.warn('⚠️ Database fetch failed, using default settings:', dbError.message);
+        // Handle 404 quietly - this is expected when endpoints don't exist
+        if (dbError.message.includes('not available')) {
+          console.log('ℹ️ Using default commission settings (endpoint not implemented)');
+        } else {
+          console.warn('⚠️ Database fetch failed, using default settings:', dbError.message);
+        }
         setSettings(defaultSettings);
-        toast.info('Using default commission settings (database unavailable)');
+        // Only show toast for non-404 errors
+        if (!dbError.message.includes('not available')) {
+          toast('Using default commission settings (database unavailable)', { icon: 'ℹ️' });
+        }
       }
     } catch (error) {
       console.error('❌ Error loading commission settings:', error);
@@ -130,7 +138,12 @@ const AdminCommissionSettingsPage = () => {
           console.log('✅ Database analytics loaded:', databaseStats);
         }
       } catch (dbError) {
-        console.warn('⚠️ Database analytics not available, using payment calculations:', dbError.message);
+        // Handle 404 quietly - this is expected when endpoints don't exist
+        if (dbError.message.includes('not available')) {
+          console.log('ℹ️ Commission analytics endpoint not implemented, using payment calculations');
+        } else {
+          console.warn('⚠️ Database analytics not available, using payment calculations:', dbError.message);
+        }
       }
       
       // Always fetch payment data for real-time calculations (as backup/verification)
@@ -276,13 +289,14 @@ const AdminCommissionSettingsPage = () => {
           throw new Error(response.message || 'Database save failed');
         }
       } catch (dbError) {
-        console.warn('⚠️ Database save failed, falling back to local save:', dbError.message);
-        
-        // Fallback to local save with user notification
-        console.log('💾 Saving commission settings locally as fallback...');
-        console.log('Settings saved locally:', settings);
-        
-        toast.warning('Settings saved locally only (database unavailable)');
+        // Handle 404 quietly - this is expected when endpoints don't exist
+        if (dbError.message.includes('not available')) {
+          console.log('ℹ️ Commission settings saved locally (endpoint not implemented)');
+          toast('Settings saved locally (backend endpoint not implemented)', { icon: 'ℹ️' });
+        } else {
+          console.warn('⚠️ Database save failed, falling back to local save:', dbError.message);
+          toast('Settings saved locally only (database unavailable)', { icon: '⚠️' });
+        }
         fetchStats(); // Refresh stats after local update
       }
     } catch (error) {

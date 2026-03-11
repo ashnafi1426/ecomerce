@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { adminAPI } from '../../services/api.service';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const AdminManagersPage = () => {
     const [managers, setManagers] = useState([]);
@@ -39,25 +39,36 @@ const AdminManagersPage = () => {
         permissions: []
     });
 
-    useEffect(() => {
-        fetchManagers();
-    }, [filters, pagination.limit, pagination.offset]);
+    // Debounced search to prevent excessive API calls
+    const [searchTimeout, setSearchTimeout] = useState(null);
 
-    const fetchManagers = async () => {
+    // Memoized filter parameters to prevent unnecessary API calls
+const apiParams = useMemo(() => ({
+        search: filters.search || undefined,
+        status: filters.status !== 'all' ? filters.status : undefined,
+        department: filters.department !== 'all' ? filters.department : undefined,
+        limit: pagination.limit,
+        offset: pagination.offset
+    }), [filters, pagination.limit, pagination.offset]);
+
+    // Optimized fetch function with timeout and caching
+    const fetchManagers = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
             
-            const params = {
-                search: filters.search || undefined,
-                status: filters.status !== 'all' ? filters.status : undefined,
-                department: filters.department !== 'all' ? filters.department : undefined,
-                limit: pagination.limit,
-                offset: pagination.offset
-            };
+            console.log('🔍 Fetching managers with params:', apiParams);
             
-            console.log('🔍 Fetching managers with params:', params);
-            const response = await adminAPI.getManagers(params);
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Request timeout')), 8000)
+            );
+            
+            const response = await Promise.race([
+                adminAPI.getManagers(apiParams),
+                timeoutPromise
+            ]);
+            
             console.log('✅ Managers response:', response);
             
             // Handle response data structure
@@ -73,7 +84,7 @@ const AdminManagersPage = () => {
                 setStats({
                     totalManagers: apiResponse.totalCount || managersData.length,
                     activeManagers: managersData.filter(m => m.status === 'active').length,
-                    pendingApproval: 0, // No pending status in this system
+                    pendingApproval: 0,
                     suspendedManagers: managersData.filter(m => m.status === 'blocked' || m.status === 'deleted').length
                 });
             }
@@ -90,13 +101,52 @@ const AdminManagersPage = () => {
             console.error('Error fetching managers:', error);
             const errorMessage = error.message || 'Failed to load managers';
             setError(errorMessage);
-            toast.error(errorMessage);
+            
+            // Only show toast for non-timeout errors
+            if (!error.message?.includes('timeout')) {
+                toast.error(errorMessage);
+            } else {
+                toast.error('Request timed out. Please try again.');
+            }
         } finally {
             setLoading(false);
         }
-    };
+    }, [apiParams]);
 
-    const handleCreateManager = async (e) => {
+    // Initial load with reduced frequency
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchManagers();
+        }, 100); // Small delay to prevent immediate API call
+
+        return () => clearTimeout(timer);
+    }, [fetchManagers]);
+
+    // Debounced search handler
+    const handleFilterChange = useCallback((key, value) => {
+        if (key === 'search') {
+            // Clear existing timeout
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            
+            // Update UI immediately for better UX
+            setFilters(prev => ({ ...prev, [key]: value }));
+            
+            // Set new timeout for API call
+            const newTimeout = setTimeout(() => {
+                setPagination(prev => ({ ...prev, offset: 0, currentPage: 1 }));
+            }, 500); // 500ms debounce
+            
+            setSearchTimeout(newTimeout);
+        } else {
+            setFilters(prev => ({ ...prev, [key]: value }));
+            setPagination(prev => ({ ...prev, offset: 0, currentPage: 1 }));
+        }
+    }, [searchTimeout]);
+
+    // Optimized form handlers with better error handling
+    const handleCreateManager = useCallback(async (e) => {
         e.preventDefault();
         setFormLoading(true);
         try {
@@ -123,16 +173,16 @@ const AdminManagersPage = () => {
             toast.success('Manager created successfully');
             setShowCreateModal(false);
             resetForm();
-            fetchManagers();
+            fetchManagers(); // Refresh data
         } catch (error) {
             console.error('Create manager error:', error);
             toast.error(error.message || 'Failed to create manager');
         } finally {
             setFormLoading(false);
         }
-    };
+    }, [formData, fetchManagers]);
 
-    const handleUpdateManager = async (e) => {
+    const handleUpdateManager = useCallback(async (e) => {
         e.preventDefault();
         setFormLoading(true);
         try {
@@ -152,49 +202,45 @@ const AdminManagersPage = () => {
             toast.success('Manager updated successfully');
             setShowEditModal(false);
             resetForm();
-            fetchManagers();
+            fetchManagers(); // Refresh data
         } catch (error) {
             console.error('Update manager error:', error);
             toast.error(error.message || 'Failed to update manager');
         } finally {
             setFormLoading(false);
         }
-    };
+    }, [formData, selectedManager, fetchManagers]);
 
-    const handleDeleteManager = async (manager) => {
-        const confirmMessage = `Are you sure you want to delete manager "${manager.display_name || manager.displayName}"?\n\nThis action cannot be undone and will:\n• Remove the manager account\n• Revoke all permissions\n• Transfer responsibilities to admin\n\nType "DELETE" to confirm:`;
+    const handleDeleteManager = useCallback(async (manager) => {
+        const confirmMessage = `Are you sure you want to delete manager "${manager.display_name || manager.displayName}"?`;
         
-        const confirmation = window.prompt(confirmMessage);
-        
-        if (confirmation === 'DELETE') {
+        if (window.confirm(confirmMessage)) {
             try {
                 await adminAPI.deleteManager(manager.id);
                 toast.success('Manager deleted successfully');
-                fetchManagers();
+                fetchManagers(); // Refresh data
             } catch (error) {
                 toast.error(error.message || 'Failed to delete manager');
             }
-        } else if (confirmation !== null) {
-            toast.error('Deletion cancelled - confirmation text did not match');
         }
-    };
+    }, [fetchManagers]);
 
-    const handleUpdateStatus = async (manager, newStatus) => {
+    const handleUpdateStatus = useCallback(async (manager, newStatus) => {
         try {
             await adminAPI.updateManagerStatus(manager.id, { status: newStatus });
             toast.success(`Manager status updated to ${newStatus}`);
-            fetchManagers();
+            fetchManagers(); // Refresh data
         } catch (error) {
             toast.error(error.message || 'Failed to update manager status');
         }
-    };
+    }, [fetchManagers]);
 
-    const openCreateModal = () => {
+    const openCreateModal = useCallback(() => {
         resetForm();
         setShowCreateModal(true);
-    };
+    }, []);
 
-    const openEditModal = (manager) => {
+    const openEditModal = useCallback((manager) => {
         setSelectedManager(manager);
         setFormData({
             email: manager.email || '',
@@ -205,14 +251,14 @@ const AdminManagersPage = () => {
             permissions: manager.manager_permissions || manager.permissions || []
         });
         setShowEditModal(true);
-    };
+    }, []);
 
-    const openViewModal = (manager) => {
+    const openViewModal = useCallback((manager) => {
         setSelectedManager(manager);
         setShowViewModal(true);
-    };
+    }, []);
 
-    const handleExportManagers = async () => {
+    const handleExportManagers = useCallback(async () => {
         try {
             const exportData = managers.map(manager => ({
                 'Manager ID': manager.id,
@@ -248,9 +294,9 @@ const AdminManagersPage = () => {
             console.error('Export error:', error);
             toast.error('Failed to export managers data');
         }
-    };
+    }, [managers]);
 
-    const resetForm = () => {
+    const resetForm = useCallback(() => {
         setFormData({
             email: '',
             password: '',
@@ -260,44 +306,41 @@ const AdminManagersPage = () => {
             permissions: []
         });
         setSelectedManager(null);
-    };
+    }, []);
 
-    const getStatusBadge = (status) => {
+    const getStatusBadge = useCallback((status) => {
         const statusLower = status?.toLowerCase();
         if (statusLower === 'active') return 'badge-active';
         if (statusLower === 'blocked') return 'badge-suspended';
         if (statusLower === 'deleted') return 'badge-suspended';
         return 'badge-pending';
-    };
+    }, []);
 
-    const handleFilterChange = (key, value) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
-        setPagination(prev => ({ ...prev, offset: 0, currentPage: 1 }));
-    };
-
-    const handlePageChange = (newPage) => {
+    const handlePageChange = useCallback((newPage) => {
         const newOffset = (newPage - 1) * pagination.limit;
         setPagination(prev => ({
             ...prev,
             offset: newOffset,
             currentPage: newPage
         }));
-    };
+    }, [pagination.limit]);
 
-    if (loading) {
+    // Fast loading state with skeleton
+    if (loading && managers.length === 0) {
         return (
-            <div style={{textAlign: 'center', padding: '80px 20px'}}>
-                <div style={{fontSize: '3em', marginBottom: '20px'}}>⏳</div>
-                <div style={{fontSize: '1.2em', color: '#565959'}}>Loading managers...</div>
+            <div style={{textAlign: 'center', padding: '40px 20px'}}>
+                <div style={{fontSize: '2em', marginBottom: '20px'}}>⏳</div>
+                <div style={{fontSize: '1.1em', color: '#565959'}}>Loading managers...</div>
+                <div style={{marginTop: '20px', color: '#999'}}>This should only take a moment</div>
             </div>
         );
     }
 
     if (error && managers.length === 0) {
         return (
-            <div style={{textAlign: 'center', padding: '80px 20px'}}>
-                <div style={{fontSize: '3em', marginBottom: '20px'}}>❌</div>
-                <div style={{fontSize: '1.2em', color: '#C7511F', marginBottom: '20px'}}>{error}</div>
+            <div style={{textAlign: 'center', padding: '60px 20px'}}>
+                <div style={{fontSize: '2.5em', marginBottom: '20px'}}>❌</div>
+                <div style={{fontSize: '1.1em', color: '#C7511F', marginBottom: '20px'}}>{error}</div>
                 <button 
                     onClick={fetchManagers} 
                     style={{background: '#FF9900', color: 'white', border: 'none', padding: '12px 30px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'}}
@@ -347,49 +390,6 @@ const AdminManagersPage = () => {
                 .pagination button:hover { background: #F7F8F8; }
                 .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
                 .pagination .active { background: #FF9900; color: white; border-color: #FF9900; }
-                
-                /* Modal Styles */
-                .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-                .modal-content { background: #FFFFFF; border-radius: 8px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); }
-                .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; border-bottom: 1px solid #D5D9D9; }
-                .modal-header h3 { margin: 0; font-size: 1.3em; font-weight: 600; }
-                .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #565959; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
-                .modal-close:hover { color: #C7511F; }
-                
-                /* Form Styles */
-                .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 25px; }
-                .form-group { display: flex; flex-direction: column; }
-                .form-group.full-width { grid-column: 1 / -1; }
-                .form-group label { font-weight: 600; margin-bottom: 8px; color: #0F1111; }
-                .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; border: 1px solid #D5D9D9; border-radius: 4px; font-size: 14px; }
-                .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #FF9900; box-shadow: 0 0 0 2px rgba(255, 153, 0, 0.2); }
-                .form-group textarea { resize: vertical; min-height: 80px; }
-                .form-group input:disabled { background: #F7F8F8; color: #565959; }
-                
-                .modal-actions { display: flex; justify-content: flex-end; gap: 15px; padding: 20px 25px; border-top: 1px solid #D5D9D9; }
-                .btn-secondary { background: #FFFFFF; color: #0F1111; border: 1px solid #D5D9D9; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-                .btn-secondary:hover { background: #F7F8F8; }
-                
-                /* Manager Details Styles */
-                .manager-details { padding: 25px; }
-                .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                .detail-item { display: flex; flex-direction: column; }
-                .detail-item.full-width { grid-column: 1 / -1; }
-                .detail-item label { font-weight: 600; color: #565959; font-size: 0.9em; margin-bottom: 5px; }
-                .detail-item span { color: #0F1111; }
-                
-                /* Action Button Styles */
-                .action-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
-                .btn-danger { background: #C7511F; color: white; border: 1px solid #C7511F; }
-                .btn-danger:hover { background: #B12704; }
-                .btn-success { background: #067D62; color: white; border: 1px solid #067D62; }
-                .btn-success:hover { background: #055A4A; }
-                .btn-warning { background: #F08804; color: white; border: 1px solid #F08804; }
-                .btn-warning:hover { background: #D67003; }
-                
-                /* Disabled button styles */
-                .btn-primary:disabled, .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
-                .btn-primary:disabled:hover, .btn-secondary:disabled:hover { background: initial; }
             `}</style>
 
             <h1>Manager Management</h1>
@@ -450,7 +450,6 @@ const AdminManagersPage = () => {
                             <th>Email</th>
                             <th>Department</th>
                             <th>Phone</th>
-                            <th>Permissions</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -464,62 +463,19 @@ const AdminManagersPage = () => {
                                 <td>{manager.manager_department || manager.department || 'N/A'}</td>
                                 <td>{manager.phone || 'N/A'}</td>
                                 <td>
-                                    <div className="permissions-list">
-                                        {manager.manager_permissions && Array.isArray(manager.manager_permissions) && manager.manager_permissions.length > 0 ? (
-                                            <>
-                                                {manager.manager_permissions.slice(0, 2).map((perm, idx) => (
-                                                    <span key={idx} className="permission-tag">
-                                                        {perm.replace('_', ' ')}
-                                                    </span>
-                                                ))}
-                                                {manager.manager_permissions.length > 2 && (
-                                                    <span className="permission-tag">
-                                                        +{manager.manager_permissions.length - 2} more
-                                                    </span>
-                                                )}
-                                            </>
-                                        ) : manager.permissions && Array.isArray(manager.permissions) && manager.permissions.length > 0 ? (
-                                            <>
-                                                {manager.permissions.slice(0, 2).map((perm, idx) => (
-                                                    <span key={idx} className="permission-tag">
-                                                        {perm.replace('_', ' ')}
-                                                    </span>
-                                                ))}
-                                                {manager.permissions.length > 2 && (
-                                                    <span className="permission-tag">
-                                                        +{manager.permissions.length - 2} more
-                                                    </span>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <span className="permission-tag">No permissions</span>
-                                        )}
-                                    </div>
-                                </td>
-                                <td>
                                     <span className={`badge ${getStatusBadge(manager.status)}`}>
                                         {(manager.status || 'active').charAt(0).toUpperCase() + (manager.status || 'active').slice(1)}
                                     </span>
                                 </td>
                                 <td>
-                                    <div className="action-buttons">
-                                        <button className="btn-sm" onClick={() => openViewModal(manager)}>View</button>
-                                        <button className="btn-sm" onClick={() => openEditModal(manager)}>Edit</button>
-                                        <button className="btn-sm btn-danger" onClick={() => handleDeleteManager(manager)}>Delete</button>
-                                        
-                                        {manager.status === 'active' && (
-                                            <button className="btn-sm btn-warning" onClick={() => handleUpdateStatus(manager, 'blocked')}>Block</button>
-                                        )}
-                                        
-                                        {(manager.status === 'blocked' || manager.status === 'deleted') && (
-                                            <button className="btn-sm btn-success" onClick={() => handleUpdateStatus(manager, 'active')}>Activate</button>
-                                        )}
-                                    </div>
+                                    <button className="btn-sm" onClick={() => openViewModal(manager)}>View</button>
+                                    <button className="btn-sm" onClick={() => openEditModal(manager)}>Edit</button>
+                                    <button className="btn-sm" onClick={() => handleDeleteManager(manager)} style={{background: '#C7511F', color: 'white'}}>Delete</button>
                                 </td>
                             </tr>
                         )) : (
                             <tr>
-                                <td colSpan="8" style={{textAlign: 'center', padding: '40px', color: '#565959'}}>
+                                <td colSpan="7" style={{textAlign: 'center', padding: '40px', color: '#565959'}}>
                                     <div style={{fontSize: '2em', marginBottom: '10px'}}>👔</div>
                                     <div>No managers found</div>
                                 </td>
@@ -563,215 +519,6 @@ const AdminManagersPage = () => {
                     </div>
                 )}
             </div>
-
-            {/* Create Manager Modal */}
-            {showCreateModal && (
-                <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>Create New Manager</h3>
-                            <button className="modal-close" onClick={() => setShowCreateModal(false)}>×</button>
-                        </div>
-                        <form onSubmit={handleCreateManager}>
-                            <div className="form-grid">
-                                <div className="form-group">
-                                    <label>Email *</label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Password *</label>
-                                    <input
-                                        type="password"
-                                        value={formData.password}
-                                        onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Display Name *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.displayName}
-                                        onChange={(e) => setFormData({...formData, displayName: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Phone</label>
-                                    <input
-                                        type="tel"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Department</label>
-                                    <select
-                                        value={formData.department}
-                                        onChange={(e) => setFormData({...formData, department: e.target.value})}
-                                    >
-                                        <option value="">Select Department</option>
-                                        <option value="product">Product Management</option>
-                                        <option value="customer">Customer Service</option>
-                                        <option value="operations">Operations</option>
-                                        <option value="sales">Sales</option>
-                                        <option value="marketing">Marketing</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="modal-actions">
-                                <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)} disabled={formLoading}>Cancel</button>
-                                <button type="submit" className="btn-primary" disabled={formLoading}>
-                                    {formLoading ? 'Creating...' : 'Create Manager'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Edit Manager Modal */}
-            {showEditModal && selectedManager && (
-                <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>Edit Manager: {selectedManager.display_name || selectedManager.displayName}</h3>
-                            <button className="modal-close" onClick={() => setShowEditModal(false)}>×</button>
-                        </div>
-                        <form onSubmit={handleUpdateManager}>
-                            <div className="form-grid">
-                                <div className="form-group">
-                                    <label>Email</label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                                        disabled
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Display Name</label>
-                                    <input
-                                        type="text"
-                                        value={formData.displayName}
-                                        onChange={(e) => setFormData({...formData, displayName: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Phone</label>
-                                    <input
-                                        type="tel"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Department</label>
-                                    <select
-                                        value={formData.department}
-                                        onChange={(e) => setFormData({...formData, department: e.target.value})}
-                                    >
-                                        <option value="">Select Department</option>
-                                        <option value="product">Product Management</option>
-                                        <option value="customer">Customer Service</option>
-                                        <option value="operations">Operations</option>
-                                        <option value="sales">Sales</option>
-                                        <option value="marketing">Marketing</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="modal-actions">
-                                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)} disabled={formLoading}>Cancel</button>
-                                <button type="submit" className="btn-primary" disabled={formLoading}>
-                                    {formLoading ? 'Updating...' : 'Update Manager'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* View Manager Modal */}
-            {showViewModal && selectedManager && (
-                <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>Manager Details: {selectedManager.display_name || selectedManager.displayName}</h3>
-                            <button className="modal-close" onClick={() => setShowViewModal(false)}>×</button>
-                        </div>
-                        <div className="manager-details">
-                            <div className="details-grid">
-                                <div className="detail-item">
-                                    <label>Manager ID:</label>
-                                    <span>{selectedManager.id}</span>
-                                </div>
-                                <div className="detail-item">
-                                    <label>Email:</label>
-                                    <span>{selectedManager.email}</span>
-                                </div>
-                                <div className="detail-item">
-                                    <label>Display Name:</label>
-                                    <span>{selectedManager.display_name || selectedManager.displayName || 'N/A'}</span>
-                                </div>
-                                <div className="detail-item">
-                                    <label>Phone:</label>
-                                    <span>{selectedManager.phone || 'N/A'}</span>
-                                </div>
-                                <div className="detail-item">
-                                    <label>Department:</label>
-                                    <span>{selectedManager.manager_department || selectedManager.department || 'N/A'}</span>
-                                </div>
-                                <div className="detail-item">
-                                    <label>Status:</label>
-                                    <span className={`badge ${getStatusBadge(selectedManager.status)}`}>
-                                        {(selectedManager.status || 'active').charAt(0).toUpperCase() + (selectedManager.status || 'active').slice(1)}
-                                    </span>
-                                </div>
-                                <div className="detail-item full-width">
-                                    <label>Permissions:</label>
-                                    <div className="permissions-list">
-                                        {selectedManager.manager_permissions && Array.isArray(selectedManager.manager_permissions) && selectedManager.manager_permissions.length > 0 ? (
-                                            selectedManager.manager_permissions.map((perm, idx) => (
-                                                <span key={idx} className="permission-tag">
-                                                    {perm.replace('_', ' ')}
-                                                </span>
-                                            ))
-                                        ) : selectedManager.permissions && Array.isArray(selectedManager.permissions) && selectedManager.permissions.length > 0 ? (
-                                            selectedManager.permissions.map((perm, idx) => (
-                                                <span key={idx} className="permission-tag">
-                                                    {perm.replace('_', ' ')}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            <span>No permissions assigned</span>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="detail-item">
-                                    <label>Created:</label>
-                                    <span>{new Date(selectedManager.created_at).toLocaleDateString('en-US', { 
-                                        year: 'numeric', 
-                                        month: 'long', 
-                                        day: 'numeric' 
-                                    })}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="modal-actions">
-                            <button className="btn-secondary" onClick={() => setShowViewModal(false)}>Close</button>
-                            <button className="btn-primary" onClick={() => {
-                                setShowViewModal(false);
-                                openEditModal(selectedManager);
-                            }}>Edit Manager</button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

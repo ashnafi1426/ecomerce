@@ -36,7 +36,7 @@ const SellerInvoicesPage = () => {
   };
 
   const handleViewInvoice = (invoiceId) => {
-    toast.info(`Viewing invoice ${invoiceId}`);
+    toast(`Viewing invoice ${invoiceId}`, { icon: 'ℹ️' });
   };
 
   if (error) {

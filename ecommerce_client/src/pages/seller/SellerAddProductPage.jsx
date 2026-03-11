@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { sellerAPI } from '../../services/api.service.minimal'
 import { toast } from 'react-hot-toast'
@@ -6,6 +6,7 @@ import { PLACEHOLDERS } from '../../utils/imagePlaceholder'
 
 const SellerAddProductPage = () => {
   const navigate = useNavigate()
+  const [categories, setCategories] = useState([])
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -27,6 +28,38 @@ const SellerAddProductPage = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  // Load categories on component mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        // Direct fetch call to avoid API service issues
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/categories`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const categoriesRes = await response.json();
+        const categoryList = Array.isArray(categoriesRes) ? categoriesRes : 
+                            (categoriesRes?.categories || categoriesRes?.data || []);
+        setCategories(categoryList);
+        console.log('📂 Loaded categories for product form:', categoryList);
+      } catch (error) {
+        console.error('❌ Failed to load categories:', error);
+        toast.error('Failed to load categories');
+      }
+    };
+    
+    loadCategories();
+  }, [])
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
@@ -37,13 +70,27 @@ const SellerAddProductPage = () => {
       setLoading(true)
       setError(null)
       
+      // Validate required fields
+      if (!formData.name || !formData.description || !formData.price || !formData.category) {
+        setError('Please fill in all required fields including category')
+        toast.error('Please fill in all required fields including category')
+        return
+      }
+
+      // Validate image URL (prevent base64 strings)
+      if (imageUrl && imageUrl.startsWith('data:')) {
+        setError('Please use a direct image URL, not a base64 string')
+        toast.error('Please use a direct image URL, not a base64 string')
+        return
+      }
+
       // Map frontend field names to backend expected names
       const productData = {
         title: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
         imageUrl: imageUrl || PLACEHOLDERS.product,
-        categoryId: null, // Categories not implemented yet, always null
+        categoryId: formData.category, // Use selected category
         initialQuantity: parseInt(formData.stock) || 0,
         lowStockThreshold: parseInt(formData.lowStockAlert) || 5
       }
@@ -65,13 +112,20 @@ const SellerAddProductPage = () => {
     try {
       setError(null)
       
+      // Validate image URL (prevent base64 strings)
+      if (imageUrl && imageUrl.startsWith('data:')) {
+        setError('Please use a direct image URL, not a base64 string')
+        toast.error('Please use a direct image URL, not a base64 string')
+        return
+      }
+      
       // Map frontend field names to backend expected names
       const productData = {
         title: formData.name,
         description: formData.description,
         price: parseFloat(formData.price) || 0,
         imageUrl: imageUrl || 'https://placehold.co/400x400/667eea/ffffff?text=Draft',
-        categoryId: null, // Categories not implemented yet, always null
+        categoryId: formData.category, // Use selected category
         initialQuantity: parseInt(formData.stock) || 0,
         lowStockThreshold: parseInt(formData.lowStockAlert) || 5,
         status: 'draft'
@@ -163,16 +217,16 @@ const SellerAddProductPage = () => {
           </div>
           <div className="form-grid">
             <div className="form-group">
-              <label className="form-label">Category</label>
-              <select name="category" className="form-select" value={formData.category} onChange={handleChange}>
-                <option value="">Select category (optional)</option>
-                <option value="electronics">Electronics</option>
-                <option value="fashion">Fashion</option>
-                <option value="home">Home & Garden</option>
-                <option value="sports">Sports & Outdoors</option>
-                <option value="books">Books</option>
+              <label className="form-label">Category *</label>
+              <select name="category" className="form-select" value={formData.category} onChange={handleChange} required>
+                <option value="">Select a category</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
               </select>
-              <div className="form-hint">Category is optional for now</div>
+              <div className="form-hint">Please select a category for your product</div>
             </div>
             <div className="form-group">
               <label className="form-label">Brand</label>
@@ -208,7 +262,7 @@ const SellerAddProductPage = () => {
               value={imageUrl} 
               onChange={(e) => setImageUrl(e.target.value)} 
             />
-            <div className="form-hint">Enter a direct URL to your product image (or leave blank for placeholder)</div>
+            <div className="form-hint">Enter a direct URL to your product image (e.g., https://example.com/image.jpg). Do not paste base64 data.</div>
           </div>
           {imageUrl && (
             <div style={{marginTop: '20px', textAlign: 'center'}}>

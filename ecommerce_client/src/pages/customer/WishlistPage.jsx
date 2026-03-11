@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useAppDispatch } from '../../hooks/redux'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAppDispatch, useAppSelector } from '../../hooks/redux'
 import { addToCart } from '../../store/slices/cartSlice'
 import { customerAPI } from '../../services/api.service'
 import { toast } from 'react-hot-toast'
 
 const WishlistPage = () => {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated)
   const [wishlist, setWishlist] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -51,6 +53,13 @@ const WishlistPage = () => {
   }
 
   const handleAddToCart = async (product) => {
+    // Redirect unauthenticated users to login
+    if (!isAuthenticated) {
+      toast('Please sign in to add items to cart', { icon: '🔒', duration: 3000 })
+      navigate('/login')
+      return
+    }
+
     try {
       console.log('🛒 Adding to cart:', product)
       

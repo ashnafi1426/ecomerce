@@ -291,6 +291,19 @@ export const sellerAPI = {
 
 // Minimal customer API
 export const customerAPI = {
+  
+  getCategories: async () => {
+    console.log('🔍 customerAPI.getCategories called (minimal)');
+    try {
+      const result = await simpleAPI.get('/categories');
+      console.log('✅ customerAPI.getCategories success (minimal):', result);
+      return result;
+    } catch (error) {
+      console.error('❌ customerAPI.getCategories error (minimal):', error);
+      throw error;
+    }
+  },
+  
   getProducts: async (params = {}) => {
     console.log('🔍 customerAPI.getProducts called (minimal) with params:', params);
     try {

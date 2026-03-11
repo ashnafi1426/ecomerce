@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { adminAPI } from '../../services/api.service';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -148,7 +148,7 @@ const AdminProductsPage = () => {
             console.log('📥 Starting PDF export...');
             
             // Show loading toast
-            toast.info('Preparing export...', { autoClose: 2000 });
+            toast('Preparing export...', { icon: 'ℹ️', duration: 2000 });
             
             // Fetch ALL products (no pagination limit)
             console.log('Fetching all products for export...');
@@ -162,12 +162,12 @@ const AdminProductsPage = () => {
             console.log(`✅ Fetched ${allProducts.length} products for export`);
             
             if (allProducts.length === 0) {
-                toast.warning('No products to export');
+                toast('No products to export', { icon: '⚠️' });
                 setExporting(false);
                 return;
             }
 
-            toast.info(`Generating PDF with ${allProducts.length} products...`, { autoClose: 2000 });
+            toast(`Generating PDF with ${allProducts.length} products...`, { icon: 'ℹ️', duration: 2000 });
 
             // Create new PDF document
             const doc = new jsPDF({

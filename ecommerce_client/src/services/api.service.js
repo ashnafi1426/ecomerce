@@ -46,6 +46,10 @@ apiClient.interceptors.response.use(
         response.data?.error ||
         `Request failed with status ${response.status}`;
 
+      // Check if this is a 404 for commission or analytics endpoints (handle quietly)
+      const isCommissionOrAnalytics = response.config?.url?.includes('/commission') || 
+                                     response.config?.url?.includes('/analytics');
+
       if (response.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -56,12 +60,20 @@ apiClient.interceptors.response.use(
       } else if (response.status === 403) {
         toast.error('You do not have permission to perform this action');
       } else if (response.status === 404) {
-        toast.error('Resource not found');
+        // Handle 404s quietly for commission/analytics endpoints
+        if (isCommissionOrAnalytics) {
+          console.log(`ℹ️ Endpoint not available (404): ${response.config?.url}`);
+        } else {
+          toast.error('Resource not found');
+        }
       } else if (response.status >= 500) {
         toast.error('Server error. Please try again later.');
         console.error(`🔥 Server error ${response.status}:`, response.data);
       } else {
-        toast.error(errorMessage);
+        // Don't show toast for 404s on commission/analytics endpoints
+        if (!(response.status === 404 && isCommissionOrAnalytics)) {
+          toast.error(errorMessage);
+        }
       }
 
       return Promise.reject(new Error(errorMessage));
@@ -158,10 +170,171 @@ const api = {
   }
 };
 
+// Enhanced caching system for better performance
+const CACHE_KEY = 'kiro_endpoint_cache';
+const CACHE_EXPIRY = 30 * 60 * 1000; // 30 minutes
+const DATA_CACHE_KEY = 'kiro_data_cache';
+const DATA_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes for data caching
+
+// Get cached endpoint status from localStorage
+const getEndpointCache = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return {};
+    
+    const parsed = JSON.parse(cached);
+    const now = Date.now();
+    
+    // Check if cache is expired
+    if (parsed.timestamp && (now - parsed.timestamp) > CACHE_EXPIRY) {
+      localStorage.removeItem(CACHE_KEY);
+      return {};
+    }
+    
+    return parsed.endpoints || {};
+  } catch (error) {
+    return {};
+  }
+};
+
+// Get cached data from localStorage
+const getDataCache = (key) => {
+  try {
+    const cached = localStorage.getItem(`${DATA_CACHE_KEY}_${key}`);
+    if (!cached) return null;
+    
+    const parsed = JSON.parse(cached);
+    const now = Date.now();
+    
+    // Check if cache is expired
+    if (parsed.timestamp && (now - parsed.timestamp) > DATA_CACHE_EXPIRY) {
+      localStorage.removeItem(`${DATA_CACHE_KEY}_${key}`);
+      return null;
+    }
+    
+    return parsed.data;
+  } catch (error) {
+    return null;
+  }
+};
+
+// Set cached data in localStorage
+const setDataCache = (key, data) => {
+  try {
+    localStorage.setItem(`${DATA_CACHE_KEY}_${key}`, JSON.stringify({
+      data,
+      timestamp: Date.now()
+    }));
+  } catch (error) {
+    // Ignore localStorage errors
+  }
+};
+
+// Save endpoint status to localStorage
+const setEndpointCache = (endpointName, isAvailable) => {
+  try {
+    const cache = getEndpointCache();
+    cache[endpointName] = isAvailable;
+    
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      endpoints: cache,
+      timestamp: Date.now()
+    }));
+  } catch (error) {
+    // Ignore localStorage errors
+  }
+};
+
+// Check if we should skip endpoint calls based on persistent cache
+const shouldSkipEndpoint = (endpointName) => {
+  const cache = getEndpointCache();
+  return cache[endpointName] === false;
+};
+
+// Mark endpoint as unavailable in persistent cache
+const markEndpointUnavailable = (endpointName) => {
+  setEndpointCache(endpointName, false);
+};
+
+// Mark endpoint as available in persistent cache
+const markEndpointAvailable = (endpointName) => {
+  setEndpointCache(endpointName, true);
+};
+
 // Admin API endpoints
 export const adminAPI = {
-  // Dashboard
-  getDashboardStats: () => api.get('/admin/dashboard'),
+  // Enhanced getManagers with caching and timeout
+  getManagers: async (params) => {
+    console.log('🔍 adminAPI.getManagers called with params:', params);
+    
+    // Create cache key from params
+    const cacheKey = `managers_${JSON.stringify(params || {})}`;
+    
+    // Check cache first
+    const cachedData = getDataCache(cacheKey);
+    if (cachedData) {
+      console.log('📦 Using cached managers data');
+      return cachedData;
+    }
+    
+    try {
+      // Add timeout wrapper
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 8000)
+      );
+      
+      const result = await Promise.race([
+        api.get('/managers', params),
+        timeoutPromise
+      ]);
+      
+      console.log('✅ adminAPI.getManagers success:', result);
+      
+      // Cache the result
+      setDataCache(cacheKey, result);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ adminAPI.getManagers error:', error);
+      throw error;
+    }
+  },
+
+  // Enhanced getDashboardStats with caching and timeout
+  getDashboardStats: async () => {
+    console.log('🔍 adminAPI.getDashboardStats called');
+    
+    const cacheKey = 'dashboard_stats';
+    
+    // Check cache first
+    const cachedData = getDataCache(cacheKey);
+    if (cachedData) {
+      console.log('📦 Using cached dashboard stats');
+      return cachedData;
+    }
+    
+    try {
+      // Add timeout wrapper
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 8000)
+      );
+      
+      const result = await Promise.race([
+        api.get('/admin/dashboard'),
+        timeoutPromise
+      ]);
+      
+      console.log('✅ adminAPI.getDashboardStats success:', result);
+      
+      // Cache the result for shorter time (dashboard data changes frequently)
+      setDataCache(cacheKey, result);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ adminAPI.getDashboardStats error:', error);
+      throw error;
+    }
+  },
   
   // Analytics - Using analytics controller endpoints
   getDashboardAnalytics: () => api.get('/admin/analytics/dashboard'),
@@ -202,6 +375,12 @@ export const adminAPI = {
   approveProduct: (id) => api.put(`/admin/products/${id}/approve`),
   rejectProduct: (id, reason) => api.put(`/admin/products/${id}/reject`, { reason }),
   
+  // Attributes
+  getAttributes: () => api.get('/admin/attributes'),
+  createAttribute: (data) => api.post('/admin/attributes', data),
+  updateAttribute: (id, data) => api.put(`/admin/attributes/${id}`, data),
+  deleteAttribute: (id) => api.delete(`/admin/attributes/${id}`),
+  
   // Categories & Brands
   getCategories: () => api.get('/admin/categories'),
   createCategory: (data) => api.post('/admin/categories', data),
@@ -209,6 +388,8 @@ export const adminAPI = {
   deleteCategory: (id) => api.delete(`/admin/categories/${id}`),
   getBrands: () => api.get('/admin/brands'),
   createBrand: (data) => api.post('/admin/brands', data),
+  updateBrand: (id, data) => api.put(`/admin/brands/${id}`, data),
+  deleteBrand: (id) => api.delete(`/admin/brands/${id}`),
   
   // Orders
   getOrders: (params) => api.get('/admin/orders', params),
@@ -345,10 +526,145 @@ export const adminAPI = {
   getCommissions: () => api.get('/admin/commissions'),
   updateCommissions: (data) => api.put('/admin/commissions', data),
   getTaxes: () => api.get('/admin/taxes'),
+  createTaxRate: (data) => api.post('/admin/taxes', data),
+  updateTaxRate: (id, data) => api.put(`/admin/taxes/${id}`, data),
+  deleteTaxRate: (id) => api.delete(`/admin/taxes/${id}`),
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (data) => api.put('/admin/settings', data),
   getLogs: (params) => api.get('/admin/logs', params),
-  generateReport: (type, params) => api.get(`/admin/reports/${type}`, params),
+  getReports: async (params) => {
+    console.log('🔍 adminAPI.getReports called');
+    
+    // Check if we should skip this endpoint based on previous failures
+    if (shouldSkipEndpoint('reports')) {
+      console.log('ℹ️ Reports endpoint skipped (known to be unavailable)');
+      throw new Error('Reports endpoint not available');
+    }
+    
+    try {
+      // Use fetch with AbortController to handle errors more gracefully
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      let response;
+      try {
+        const token = localStorage.getItem('token');
+        response = await fetch(`${API_BASE_URL}/admin/reports`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        // Mark endpoint as unavailable and handle quietly
+        markEndpointUnavailable('reports');
+        console.log('ℹ️ Reports endpoint not available (network error)');
+        throw new Error('Reports endpoint not available');
+      }
+      
+      // Handle 404 quietly
+      if (response.status === 404) {
+        markEndpointUnavailable('reports');
+        console.log('ℹ️ Reports endpoint not available (404)');
+        throw new Error('Reports endpoint not available');
+      }
+      
+      // Handle other errors
+      if (!response.ok) {
+        markEndpointUnavailable('reports');
+        console.log(`ℹ️ Reports endpoint returned ${response.status}`);
+        throw new Error('Reports endpoint not available');
+      }
+      
+      // Mark as available for future use
+      markEndpointAvailable('reports');
+      
+      const result = await response.json();
+      console.log('✅ adminAPI.getReports success:', result);
+      return result;
+    } catch (error) {
+      // Handle all errors quietly
+      if (error.message.includes('not available') || error.name === 'TypeError' || error.name === 'AbortError') {
+        console.log('ℹ️ Reports endpoint not available');
+        throw new Error('Reports endpoint not available');
+      }
+      markEndpointUnavailable('reports');
+      console.log('ℹ️ Reports endpoint not available (unknown error)');
+      throw new Error('Reports endpoint not available');
+    }
+  },
+  generateReport: async (type, params) => {
+    console.log('🔍 adminAPI.generateReport called');
+    
+    // Check if we should skip this endpoint based on previous failures
+    if (shouldSkipEndpoint('generateReport')) {
+      console.log('ℹ️ Generate report endpoint skipped (known to be unavailable)');
+      throw new Error('Generate report endpoint not available');
+    }
+    
+    try {
+      // Use fetch with AbortController to handle errors more gracefully
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for generation
+      
+      let response;
+      try {
+        const token = localStorage.getItem('token');
+        const queryParams = new URLSearchParams(params).toString();
+        const url = `${API_BASE_URL}/admin/reports/${type}${queryParams ? `?${queryParams}` : ''}`;
+        
+        response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        // Mark endpoint as unavailable and handle quietly
+        markEndpointUnavailable('generateReport');
+        console.log('ℹ️ Generate report endpoint not available (network error)');
+        throw new Error('Generate report endpoint not available');
+      }
+      
+      // Handle 404 quietly
+      if (response.status === 404) {
+        markEndpointUnavailable('generateReport');
+        console.log('ℹ️ Generate report endpoint not available (404)');
+        throw new Error('Generate report endpoint not available');
+      }
+      
+      // Handle other errors
+      if (!response.ok) {
+        markEndpointUnavailable('generateReport');
+        console.log(`ℹ️ Generate report endpoint returned ${response.status}`);
+        throw new Error('Generate report endpoint not available');
+      }
+      
+      // Mark as available for future use
+      markEndpointAvailable('generateReport');
+      
+      const result = await response.json();
+      console.log('✅ adminAPI.generateReport success:', result);
+      return result;
+    } catch (error) {
+      // Handle all errors quietly
+      if (error.message.includes('not available') || error.name === 'TypeError' || error.name === 'AbortError') {
+        console.log('ℹ️ Generate report endpoint not available');
+        throw new Error('Generate report endpoint not available');
+      }
+      markEndpointUnavailable('generateReport');
+      console.log('ℹ️ Generate report endpoint not available (unknown error)');
+      throw new Error('Generate report endpoint not available');
+    }
+  },
   
   // PDF Export
   exportAnalyticsReport: async (params) => {
@@ -369,56 +685,204 @@ export const adminAPI = {
   // Commission Settings
   getCommissionSettings: async () => {
     console.log('🔍 adminAPI.getCommissionSettings called');
+    
+    // Check if we should skip this endpoint based on previous failures
+    if (shouldSkipEndpoint('commissionSettings')) {
+      console.log('ℹ️ Commission settings endpoint skipped (known to be unavailable)');
+      throw new Error('Commission settings endpoint not available');
+    }
+    
     try {
       // Commission routes are mounted directly, not under /api
       const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const result = await axios.get(`${BASE_URL}/admin/commission-settings`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      console.log('✅ adminAPI.getCommissionSettings success:', result.data);
-      return result.data;
+      
+      // Use fetch with AbortController to handle errors more gracefully
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      let response;
+      try {
+        response = await fetch(`${BASE_URL}/admin/commission-settings`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        // Mark endpoint as unavailable and handle quietly
+        markEndpointUnavailable('commissionSettings');
+        console.log('ℹ️ Commission settings endpoint not available (network error)');
+        throw new Error('Commission settings endpoint not available');
+      }
+      
+      // Handle 404 quietly
+      if (response.status === 404) {
+        markEndpointUnavailable('commissionSettings');
+        console.log('ℹ️ Commission settings endpoint not available (404)');
+        throw new Error('Commission settings endpoint not available');
+      }
+      
+      // Handle other errors
+      if (!response.ok) {
+        markEndpointUnavailable('commissionSettings');
+        console.log(`ℹ️ Commission settings endpoint returned ${response.status}`);
+        throw new Error('Commission settings endpoint not available');
+      }
+      
+      // Mark as available for future use
+      markEndpointAvailable('commissionSettings');
+      
+      const result = await response.json();
+      console.log('✅ adminAPI.getCommissionSettings success:', result);
+      return result;
     } catch (error) {
-      console.error('❌ adminAPI.getCommissionSettings error:', error);
-      throw error;
+      // Handle all errors quietly
+      if (error.message.includes('not available') || error.name === 'TypeError' || error.name === 'AbortError') {
+        console.log('ℹ️ Commission settings endpoint not available');
+        throw new Error('Commission settings endpoint not available');
+      }
+      markEndpointUnavailable('commissionSettings');
+      console.log('ℹ️ Commission settings endpoint not available (unknown error)');
+      throw new Error('Commission settings endpoint not available');
     }
   },
   updateCommissionSettings: async (data) => {
     console.log('🔍 adminAPI.updateCommissionSettings called:', data);
+    
+    // Check if we should skip this endpoint based on previous failures
+    if (shouldSkipEndpoint('commissionSettings')) {
+      console.log('ℹ️ Commission settings update endpoint skipped (known to be unavailable)');
+      throw new Error('Commission settings update endpoint not available');
+    }
+    
     try {
       // Commission routes are mounted directly, not under /api
       const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const result = await axios.put(`${BASE_URL}/admin/commission-settings`, data, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      console.log('✅ adminAPI.updateCommissionSettings success:', result.data);
-      return result.data;
+      
+      // Use fetch with AbortController to handle errors more gracefully
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for PUT
+      
+      let response;
+      try {
+        response = await fetch(`${BASE_URL}/admin/commission-settings`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        // Mark endpoint as unavailable and handle quietly
+        markEndpointUnavailable('commissionSettings');
+        console.log('ℹ️ Commission settings update endpoint not available (network error)');
+        throw new Error('Commission settings update endpoint not available');
+      }
+      
+      // Handle 404 quietly
+      if (response.status === 404) {
+        markEndpointUnavailable('commissionSettings');
+        console.log('ℹ️ Commission settings update endpoint not available (404)');
+        throw new Error('Commission settings update endpoint not available');
+      }
+      
+      // Handle other errors
+      if (!response.ok) {
+        markEndpointUnavailable('commissionSettings');
+        console.log(`ℹ️ Commission settings update endpoint returned ${response.status}`);
+        throw new Error('Commission settings update endpoint not available');
+      }
+      
+      // Mark as available for future use
+      markEndpointAvailable('commissionSettings');
+      
+      const result = await response.json();
+      console.log('✅ adminAPI.updateCommissionSettings success:', result);
+      return result;
     } catch (error) {
-      console.error('❌ adminAPI.updateCommissionSettings error:', error);
-      throw error;
+      // Handle all errors quietly
+      if (error.message.includes('not available') || error.name === 'TypeError' || error.name === 'AbortError') {
+        console.log('ℹ️ Commission settings update endpoint not available');
+        throw new Error('Commission settings update endpoint not available');
+      }
+      markEndpointUnavailable('commissionSettings');
+      console.log('ℹ️ Commission settings update endpoint not available (unknown error)');
+      throw new Error('Commission settings update endpoint not available');
     }
   },
   getCommissionAnalytics: async (period = '30days') => {
     console.log('🔍 adminAPI.getCommissionAnalytics called');
+    
+    // Check if we should skip this endpoint based on previous failures
+    if (shouldSkipEndpoint('commissionAnalytics')) {
+      console.log('ℹ️ Commission analytics endpoint skipped (known to be unavailable)');
+      throw new Error('Commission analytics endpoint not available');
+    }
+    
     try {
       // Commission routes are mounted directly, not under /api
       const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const result = await axios.get(`${BASE_URL}/admin/commission-analytics?period=${period}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      console.log('✅ adminAPI.getCommissionAnalytics success:', result.data);
-      return result.data;
+      
+      // Use fetch with AbortController to handle errors more gracefully
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      let response;
+      try {
+        response = await fetch(`${BASE_URL}/admin/commission-analytics?period=${period}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        // Mark endpoint as unavailable and handle quietly
+        markEndpointUnavailable('commissionAnalytics');
+        console.log('ℹ️ Commission analytics endpoint not available (network error)');
+        throw new Error('Commission analytics endpoint not available');
+      }
+      
+      // Handle 404 quietly
+      if (response.status === 404) {
+        markEndpointUnavailable('commissionAnalytics');
+        console.log('ℹ️ Commission analytics endpoint not available (404)');
+        throw new Error('Commission analytics endpoint not available');
+      }
+      
+      // Handle other errors
+      if (!response.ok) {
+        markEndpointUnavailable('commissionAnalytics');
+        console.log(`ℹ️ Commission analytics endpoint returned ${response.status}`);
+        throw new Error('Commission analytics endpoint not available');
+      }
+      
+      // Mark as available for future use
+      markEndpointAvailable('commissionAnalytics');
+      
+      const result = await response.json();
+      console.log('✅ adminAPI.getCommissionAnalytics success:', result);
+      return result;
     } catch (error) {
-      console.error('❌ adminAPI.getCommissionAnalytics error:', error);
-      throw error;
+      // Handle all errors quietly
+      if (error.message.includes('not available') || error.name === 'TypeError' || error.name === 'AbortError') {
+        console.log('ℹ️ Commission analytics endpoint not available');
+        throw new Error('Commission analytics endpoint not available');
+      }
+      markEndpointUnavailable('commissionAnalytics');
+      console.log('ℹ️ Commission analytics endpoint not available (unknown error)');
+      throw new Error('Commission analytics endpoint not available');
     }
   }
 };

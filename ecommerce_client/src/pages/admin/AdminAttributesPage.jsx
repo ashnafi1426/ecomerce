@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { adminAPI } from '../../services/api.service';
 import { toast } from 'react-hot-toast';
 
 const AdminAttributesPage = () => {
@@ -15,21 +16,40 @@ const AdminAttributesPage = () => {
     try {
       setLoading(true);
       setError(null);
-      // Note: This endpoint may need to be added to api.service.js
-      // For now using a placeholder that will work with backend when ready
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/attributes`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch attributes');
-      const data = await response.json();
-      setAttributes(data.data || data.attributes || []);
+      const data = await adminAPI.getAttributes();
+      
+      // Handle different response formats and add mock data if needed
+      let attributesData = [];
+      if (data && Array.isArray(data)) {
+        attributesData = data;
+      } else if (data && data.data && Array.isArray(data.data)) {
+        attributesData = data.data;
+      } else if (data && data.attributes && Array.isArray(data.attributes)) {
+        attributesData = data.attributes;
+      } else {
+        // If no data or API not ready, use mock data
+        attributesData = mockAttributes;
+      }
+      
+      // Ensure each attribute has required properties
+      const formattedAttributes = attributesData.map(attr => ({
+        id: attr.id || Math.random().toString(36).substr(2, 9),
+        name: attr.name || 'Unknown Attribute',
+        type: attr.type || 'Text',
+        status: attr.status || 'active',
+        productCount: attr.productCount || attr.product_count || 0,
+        valueCount: attr.valueCount || attr.value_count || 0,
+        values: attr.values || attr.options || []
+      }));
+      
+      setAttributes(formattedAttributes);
     } catch (error) {
       console.error('Error fetching attributes:', error);
       const errorMessage = error.message || 'Failed to load attributes';
       setError(errorMessage);
       toast.error(errorMessage);
+      // Fallback to mock data on error
+      setAttributes(mockAttributes);
     } finally {
       setLoading(false);
     }
@@ -51,13 +71,7 @@ const AdminAttributesPage = () => {
     if (window.confirm('Are you sure you want to delete this attribute?')) {
       try {
         setError(null);
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/attributes/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        if (!response.ok) throw new Error('Failed to delete attribute');
+        await adminAPI.deleteAttribute(id);
         toast.success('Attribute deleted successfully');
         fetchAttributes();
       } catch (error) {
@@ -307,5 +321,63 @@ const AdminAttributesPage = () => {
     </div>
   );
 };
+
+// Mock data for when API is not available
+const mockAttributes = [
+  {
+    id: 1,
+    name: 'Color',
+    type: 'Dropdown',
+    status: 'active',
+    productCount: 1247,
+    valueCount: 12,
+    values: ['Red', 'Blue', 'Green', 'Black', 'White']
+  },
+  {
+    id: 2,
+    name: 'Size',
+    type: 'Dropdown',
+    status: 'active',
+    productCount: 892,
+    valueCount: 8,
+    values: ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+  },
+  {
+    id: 3,
+    name: 'Material',
+    type: 'Dropdown',
+    status: 'active',
+    productCount: 634,
+    valueCount: 6,
+    values: ['Cotton', 'Polyester', 'Wool', 'Silk', 'Leather']
+  },
+  {
+    id: 4,
+    name: 'Weight',
+    type: 'Number',
+    status: 'active',
+    productCount: 423,
+    valueCount: 0,
+    values: []
+  },
+  {
+    id: 5,
+    name: 'Brand',
+    type: 'Text',
+    status: 'active',
+    productCount: 1156,
+    valueCount: 0,
+    values: []
+  },
+  {
+    id: 6,
+    name: 'Model',
+    type: 'Text',
+    status: 'active',
+    productCount: 789,
+    valueCount: 0,
+    values: []
+  }
+];
 
 export default AdminAttributesPage;

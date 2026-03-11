@@ -120,44 +120,44 @@ const Header = () => {
         .hdr-top a:hover { color: #fff; text-decoration: underline; }
 
         /* ── Main bar ── */
-        .hdr-main { background: #131921; padding: 16px 24px; display: flex; align-items: center; gap: 14px; transition: box-shadow .2s; }
+        .hdr-main { background: #131921; padding: 12px 16px; display: flex; align-items: center; gap: 8px; transition: box-shadow .2s; max-width: 1500px; margin: 0 auto; }
         .hdr-main.scrolled { box-shadow: 0 4px 20px rgba(0,0,0,.7); }
 
         /* ── Logo ── */
-        .hdr-logo { display: flex; flex-direction: column; padding: 8px 10px; border: 1px solid transparent; border-radius: 3px; flex-shrink: 0; transition: border-color .15s; cursor: pointer; }
+        .hdr-logo { display: flex; flex-direction: column; padding: 8px 10px; border: 1px solid transparent; border-radius: 3px; flex-shrink: 0; transition: border-color .15s; cursor: pointer; max-width: 140px; }
         .hdr-logo:hover { border-color: #fff; }
-        .hdr-logo-name { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1; }
+        .hdr-logo-name { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1; }
         .hdr-logo-name span { color: #FF9900; }
         .hdr-logo-arrow { display: block; margin-top: 2px; }
 
         /* ── Language selector ── */
-        .hdr-lang { display: flex; align-items: center; gap: 5px; padding: 8px 10px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; }
+        .hdr-lang { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; }
         .hdr-lang:hover { border-color: #fff; }
-        .hdr-lang-code { font-size: 15px; font-weight: 700; line-height: 1; }
-        .hdr-lang-arr { font-size: 11px; color: #ccc; line-height: 1; }
+        .hdr-lang-code { font-size: 13px; font-weight: 700; line-height: 1; }
+        .hdr-lang-arr { font-size: 10px; color: #ccc; line-height: 1; }
 
         /* ── Deliver to ── */
-        .hdr-deliver { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; flex-shrink: 0; transition: border-color .15s; white-space: nowrap; }
+        .hdr-deliver { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; flex-shrink: 0; transition: border-color .15s; white-space: nowrap; max-width: 120px; }
         .hdr-deliver:hover { border-color: #fff; }
-        .hdr-deliver-icon { font-size: 24px; }
-        .hdr-deliver-line1 { font-size: 15px; color: #ccc; }
-        .hdr-deliver-line2 { font-size: 18px; font-weight: 700; color: #fff; }
+        .hdr-deliver-icon { font-size: 20px; }
+        .hdr-deliver-line1 { font-size: 13px; color: #ccc; }
+        .hdr-deliver-line2 { font-size: 15px; font-weight: 700; color: #fff; }
 
         /* ── Search bar ── */
-        .hdr-search { flex: 1; display: flex; height: 58px; border-radius: 6px; overflow: hidden; min-width: 0; }
-        .hdr-search-cat { background: #F3F3F3; border: none; padding: 0 6px 0 10px; font-size: 16px; color: #555; cursor: pointer; border-right: 1px solid #cdcdcd; min-width: 65px; max-width: 150px; flex-shrink: 0; }
+        .hdr-search { flex: 2; display: flex; height: 58px; border-radius: 6px; overflow: hidden; min-width: 300px; max-width: none; margin: 0 8px; }
+        .hdr-search-cat { background: #F3F3F3; border: none; padding: 0 8px 0 12px; font-size: 14px; color: #555; cursor: pointer; border-right: 1px solid #cdcdcd; min-width: 60px; max-width: 140px; flex-shrink: 0; }
         .hdr-search-cat:hover { background: #e6e6e6; }
-        .hdr-search-input { flex: 1; border: none; padding: 0 14px; font-size: 19px; color: #111; outline: none; min-width: 0; background: #fff; }
+        .hdr-search-input { flex: 1; border: none; padding: 0 16px; font-size: 16px; color: #111; outline: none; min-width: 0; background: #fff; width: 100%; }
         .hdr-search-input:focus { outline: 3px solid #FF9900; outline-offset: -3px; }
-        .hdr-search-btn { background: #FF9900; border: none; padding: 0 20px; cursor: pointer; flex-shrink: 0; transition: background .15s; display: flex; align-items: center; justify-content: center; }
+        .hdr-search-btn { background: #FF9900; border: none; padding: 0 20px; cursor: pointer; flex-shrink: 0; transition: background .15s; display: flex; align-items: center; justify-content: center; min-width: 50px; }
         .hdr-search-btn:hover { background: #e67e00; }
 
         /* ── Right actions ── */
-        .hdr-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-        .hdr-action { padding: 8px 12px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; text-align: left; text-decoration: none; display: flex; flex-direction: column; }
+        .hdr-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; max-width: 400px; }
+        .hdr-action { padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; text-align: left; text-decoration: none; display: flex; flex-direction: column; }
         .hdr-action:hover { border-color: #fff; }
-        .hdr-action-line1 { font-size: 15px; color: #ccc; white-space: nowrap; }
-        .hdr-action-line2 { font-size: 17px; font-weight: 700; white-space: nowrap; }
+        .hdr-action-line1 { font-size: 13px; color: #ccc; white-space: nowrap; }
+        .hdr-action-line2 { font-size: 15px; font-weight: 700; white-space: nowrap; }
 
         /* ── Cart ── */
         .hdr-cart { display: flex; align-items: center; gap: 4px; padding: 8px 10px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; text-decoration: none; color: #fff; }
@@ -195,11 +195,17 @@ const Header = () => {
         .hdr-drawer-link:hover { background: rgba(255,255,255,.07); color: #fff; }
 
         /* ── Responsive ── */
-        @media (max-width: 1199px) { .hdr-deliver { display: none; } .hdr-lang { display: none !important; } }
+        @media (max-width: 1199px) { 
+          .hdr-deliver { display: none; } 
+          .hdr-lang { display: none !important; }
+          .hdr-main { gap: 12px; }
+        }
         @media (max-width: 899px) {
-          .hdr-main { padding: 10px 14px; gap: 10px; }
+          .hdr-main { padding: 10px 16px; gap: 10px; }
           .hdr-action-line1 { display: none; }
           .hdr-cart-label { display: none; }
+          .hdr-search-cat { min-width: 60px; max-width: 120px; padding: 0 6px 0 8px; }
+          .hdr-search-btn { padding: 0 18px; min-width: 50px; }
         }
         @media (max-width: 767px) {
           .hdr-top { display: none; }
@@ -213,12 +219,15 @@ const Header = () => {
           .hdr-action { padding: 6px 7px; }
           .hdr-action-icon { font-size: 26px; display: block !important; }
           .hdr-logo-name { font-size: 22px; }
+          .hdr-search-input { padding: 0 12px; }
+          .hdr-search-btn { padding: 0 16px; min-width: 45px; }
         }
         @media (max-width: 479px) {
           .hdr-main { padding: 8px 10px; gap: 6px; }
           .hdr-logo-name { font-size: 20px; }
           .hdr-search { height: 44px; }
-          .hdr-search-btn { padding: 0 16px; }
+          .hdr-search-btn { padding: 0 14px; min-width: 40px; }
+          .hdr-search-input { padding: 0 10px; }
         }
       `}</style>
 

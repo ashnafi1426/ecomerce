@@ -67,7 +67,7 @@ const GuestCheckoutPage = () => {
       const result = await guestAPI.validateGuestEmail(guestEmail);
       
       if (result.requiresLogin) {
-        toast.info('This email is already registered. Please login.');
+        toast('This email is already registered. Please login.', { icon: 'ℹ️' });
         navigate('/login');
         return;
       }

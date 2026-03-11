@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { addToCart } from '../store/slices/cartSlice';
+import { toast } from 'react-hot-toast';
 
 const ProductGrid = ({ products = [], title = "Products", showFilters = false }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
   const [sortBy, setSortBy] = useState('featured');
   const [priceRange, setPriceRange] = useState('all');
 
@@ -12,8 +17,36 @@ const ProductGrid = ({ products = [], title = "Products", showFilters = false })
 
   const handleAddToCart = (e, product) => {
     e.stopPropagation();
-    // Add to cart logic here
-    console.log('Adding to cart:', product);
+    
+    // Redirect unauthenticated users to login
+    if (!isAuthenticated) {
+      toast('Please sign in to add items to cart', { icon: '🔒', duration: 3000 });
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const cartItem = {
+        id: product.id,
+        name: product.title || product.name,
+        price: product.price,
+        image: product.image_url || product.image,
+        quantity: 1,
+        price_at_add: product.price
+      };
+      
+      dispatch(addToCart(cartItem));
+      toast.success('✓ Added to cart!', {
+        duration: 2000,
+        style: {
+          background: '#067D62',
+          color: '#fff',
+        }
+      });
+    } catch (err) {
+      console.error('Error adding to cart:', err);
+      toast.error('Failed to add to cart');
+    }
   };
 
   const handleAddToWishlist = (e, product) => {

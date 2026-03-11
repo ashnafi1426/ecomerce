@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { addToCart } from '../../store/slices/cartSlice';
 import { toast } from 'react-hot-toast';
 import { customerAPI } from '../../services/api.service';
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
   const [categories, setCategories] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -92,6 +96,40 @@ const HomePage = () => {
     return Math.round(((originalPrice - price) / originalPrice) * 100);
   };
 
+  const handleAddToCart = (e, product) => {
+    e.stopPropagation();
+    
+    // Redirect unauthenticated users to login
+    if (!isAuthenticated) {
+      toast('Please sign in to add items to cart', { icon: '🔒', duration: 3000 });
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const cartItem = {
+        id: product.id,
+        name: product.title || product.name,
+        price: product.price,
+        image: product.image_url || product.image,
+        quantity: 1,
+        price_at_add: product.price
+      };
+      
+      dispatch(addToCart(cartItem));
+      toast.success('✓ Added to cart!', {
+        duration: 2000,
+        style: {
+          background: '#067D62',
+          color: '#fff',
+        }
+      });
+    } catch (err) {
+      console.error('Error adding to cart:', err);
+      toast.error('Failed to add to cart');
+    }
+  };
+
   // ── Shared animated product card renderer ──
   const renderProductCard = (product, { showDiscount = false, rank = null, badge = null } = {}) => {
     const discount = showDiscount ? calculateDiscount(product.price, product.original_price) : null;
@@ -118,7 +156,7 @@ const HomePage = () => {
           {rank && <div className="pc-badge bg-[#FF9900] text-[#0F1111]" style={{ top: '8px', left: '8px' }}>#{rank}</div>}
           {badge === 'new' && <div className="pc-badge bg-[#067D62] text-white" style={{ top: '8px', right: '8px' }}>NEW</div>}
           {badge === 'hot' && <div className="pc-badge bg-[#B12704] text-white" style={{ top: '8px', left: '8px' }}>🔥 HOT</div>}
-          <button className="pc-quick-cart" onClick={(e) => { e.stopPropagation(); }}>🛒 Add to Cart</button>
+          <button className="pc-quick-cart" onClick={(e) => handleAddToCart(e, product)}>🛒 Add to Cart</button>
         </div>
         {/* Info */}
         <div className="p-2 sm:p-3">
@@ -235,18 +273,56 @@ const HomePage = () => {
       console.log('📦 Products response:', productsRes);
 
       // Set categories
-      const categoryList = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || categoriesRes?.categories || [];
+      const categoryList = Array.isArray(categoriesRes) ? categoriesRes : 
+                          (categoriesRes?.categories || categoriesRes?.data || []);
+      console.log('📂 Processed categories:', categoryList.map(c => ({ id: c.id, name: c.name, id_type: typeof c.id })));
       setCategories(categoryList);
 
       // Set products - ensure only approved products are shown
-      const productList = Array.isArray(productsRes) ? productsRes : productsRes?.data || productsRes?.products || [];
+      const productList = Array.isArray(productsRes) ? productsRes : 
+                         (productsRes?.products || productsRes?.data || []);
+      console.log('📦 Raw product list sample:', productList.slice(0, 3).map(p => ({ 
+        id: p.id, 
+        title: p.title, 
+        category_id: p.category_id, 
+        category_id_type: typeof p.category_id,
+        category: p.category,
+        approval_status: p.approval_status,
+        status: p.status
+      })));
       
       // Filter to only approved products (extra safety check)
       const approvedProducts = productList.filter(product => 
         product.approval_status === 'approved' && product.status === 'active'
       );
       
+      console.log('📦 Approved products sample:', approvedProducts.slice(0, 3).map(p => ({ 
+        id: p.id, 
+        title: p.title, 
+        category_id: p.category_id, 
+        category_id_type: typeof p.category_id,
+        category: p.category
+      })));
+      
       setAllProducts(approvedProducts);
+
+      // Debug: Check if any products match any categories
+      console.log('🔍 Category matching test:');
+      categoryList.forEach(category => {
+        const matchingProducts = approvedProducts.filter(product => {
+          return product.category_id == category.id || 
+                 String(product.category_id) === String(category.id) ||
+                 Number(product.category_id) === Number(category.id);
+        });
+        console.log(`Category "${category.name}" (ID: ${category.id}, type: ${typeof category.id}): ${matchingProducts.length} products`);
+        if (matchingProducts.length > 0) {
+          console.log('  Sample products:', matchingProducts.slice(0, 2).map(p => ({ 
+            title: p.title, 
+            category_id: p.category_id, 
+            category_id_type: typeof p.category_id 
+          })));
+        }
+      });
 
       // Create product sections for Amazon-style layout
       const shuffledProducts = [...approvedProducts].sort(() => 0.5 - Math.random());
@@ -298,9 +374,40 @@ const HomePage = () => {
   };
 
   const filterProducts = () => {
+    console.log('🔍 Filtering products - selectedCategory:', selectedCategory, typeof selectedCategory);
+    console.log('📦 All products sample:', allProducts.slice(0, 2).map(p => ({ 
+      id: p.id, 
+      name: p.title || p.name, 
+      category_id: p.category_id, 
+      category_id_type: typeof p.category_id 
+    })));
+    
     let filtered = selectedCategory === 'all' 
       ? allProducts 
-      : allProducts.filter(product => product.category_id === selectedCategory);
+      : allProducts.filter(product => {
+          // Handle both string and number comparison
+          const productCategoryId = product.category_id;
+          const selectedCategoryId = selectedCategory;
+          
+          // Try both strict equality and loose equality
+          const matches = productCategoryId == selectedCategoryId || 
+                         String(productCategoryId) === String(selectedCategoryId) ||
+                         Number(productCategoryId) === Number(selectedCategoryId);
+          
+          if (matches) {
+            console.log('✅ Product matches category:', {
+              product: product.title || product.name,
+              productCategoryId,
+              selectedCategoryId,
+              productCategoryIdType: typeof productCategoryId,
+              selectedCategoryIdType: typeof selectedCategoryId
+            });
+          }
+          
+          return matches;
+        });
+
+    console.log(`📊 Filtered ${filtered.length} products from ${allProducts.length} total for category ${selectedCategory}`);
 
     // Apply price range filter
     filtered = filtered.filter(product => {
@@ -331,7 +438,8 @@ const HomePage = () => {
   };
 
   const handleCategoryFilter = (categoryId) => {
-    console.log('🔍 Filtering by category:', categoryId);
+    console.log('🔍 Filtering by category:', categoryId, typeof categoryId);
+    console.log('📂 Available categories:', categories.map(c => ({ id: c.id, name: c.name, id_type: typeof c.id })));
     setSelectedCategory(categoryId);
     // Smooth scroll to products section
     const productsSection = document.getElementById('products-section');

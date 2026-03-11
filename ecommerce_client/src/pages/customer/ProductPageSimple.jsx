@@ -59,6 +59,13 @@ const ProductPageSimple = () => {
   }, [id, isAuthenticated])
 
   const handleAddToCart = async () => {
+    // Redirect unauthenticated users to login
+    if (!isAuthenticated) {
+      toast('Please sign in to add items to cart', { icon: '🔒', duration: 3000 })
+      navigate(`/login?redirect=/product/${id}`)
+      return
+    }
+
     setAddingToCart(true)
     
     try {
@@ -89,6 +96,13 @@ const ProductPageSimple = () => {
   }
 
   const handleBuyNow = async () => {
+    // Redirect unauthenticated users to login
+    if (!isAuthenticated) {
+      toast('Please sign in to proceed to checkout', { icon: '🔒', duration: 3000 })
+      navigate(`/login?redirect=/product/${id}`)
+      return
+    }
+
     setAddingToCart(true)
     
     try {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminAPI } from '../../services/api.service';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import UserTable from '../../components/admin/UserTable';
 import UserFilters from '../../components/admin/UserFilters';
 import UserModal from '../../components/admin/UserModal';
@@ -197,7 +197,7 @@ const AdminUsersPage = () => {
     // Handle bulk actions
     const handleBulkAction = useCallback(async (action, data) => {
         if (selectedUsers.length === 0) {
-            toast.warning('Please select users first');
+            toast('Please select users first', { icon: '⚠️' });
             return;
         }
 

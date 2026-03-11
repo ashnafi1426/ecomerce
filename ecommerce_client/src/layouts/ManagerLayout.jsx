@@ -31,8 +31,18 @@ const ManagerLayout = () => {
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; }
         .sidebar-overlay.show { display: block; }
         
-        /* Desktop styles */
-        .manager-sidebar { width: 256px; background: white; border-right: 1px solid #D5D9D9; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+        /* Desktop styles - Force sidebar to be visible */
+        .manager-sidebar { 
+          width: 256px; 
+          background: white; 
+          border-right: 1px solid #D5D9D9; 
+          position: sticky; 
+          top: 0; 
+          height: 100vh; 
+          overflow-y: auto;
+          display: block;
+          transform: translateX(0);
+        }
         
         @media (min-width: 1280px) {
           .main-content-wrapper { padding: 32px; }
@@ -49,6 +59,17 @@ const ManagerLayout = () => {
           .manager-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 280px; max-width: 85vw; z-index: 1000; transform: translateX(-100%); transition: transform 0.3s ease; height: 100vh; overflow-y: auto; }
           .manager-sidebar.show { transform: translateX(0); }
           .main-content-wrapper { padding: 16px; }
+        }
+        
+        @media (min-width: 769px) {
+          .manager-sidebar { 
+            display: block !important; 
+            transform: translateX(0) !important; 
+            position: sticky !important;
+            width: 256px !important;
+            background: white !important;
+            border-right: 1px solid #D5D9D9 !important;
+          }
         }
         
         @media (max-width: 480px) {
@@ -92,8 +113,21 @@ const ManagerLayout = () => {
       </header>
 
       <div className="flex min-h-[calc(100vh-64px)]">
-        {/* Sidebar */}
-        <aside className={`w-64 bg-white border-r border-[#D5D9D9] manager-sidebar ${showMobileSidebar ? 'show' : ''}`}>
+        {/* Sidebar - Force visible with debug styling */}
+        <aside 
+          className={`manager-sidebar ${showMobileSidebar ? 'show' : ''}`}
+          style={{ 
+            display: 'block', 
+            width: '256px', 
+            background: 'white', 
+            borderRight: '1px solid #D5D9D9',
+            position: 'sticky',
+            top: '0',
+            height: '100vh',
+            overflowY: 'auto',
+            zIndex: '10'
+          }}
+        >
           <nav className="py-6">
             <ul className="space-y-1">
               <li>
@@ -166,20 +200,7 @@ const ManagerLayout = () => {
                   <span>Returns</span>
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/manager/disputes"
-                  className={`flex items-center gap-3 px-6 py-3 transition-colors ${
-                    isActive('/manager/disputes')
-                      ? 'bg-[#FFF4E5] border-l-4 border-[#FF9900] font-semibold text-[#0F1111]'
-                      : 'text-[#0F1111] hover:bg-[#F7F8F8]'
-                  }`}
-                  onClick={closeMobileSidebar}
-                >
-                  <span className="text-xl">⚠️</span>
-                  <span>Disputes</span>
-                </Link>
-              </li>
+
               <li>
                 <Link
                   to="/manager/refunds"
@@ -194,76 +215,11 @@ const ManagerLayout = () => {
                   <span>Refunds</span>
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/manager/support-tickets"
-                  className={`flex items-center gap-3 px-6 py-3 transition-colors ${
-                    isActive('/manager/support-tickets')
-                      ? 'bg-[#FFF4E5] border-l-4 border-[#FF9900] font-semibold text-[#0F1111]'
-                      : 'text-[#0F1111] hover:bg-[#F7F8F8]'
-                  }`}
-                  onClick={closeMobileSidebar}
-                >
-                  <span className="text-xl">🎫</span>
-                  <span>Support</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/manager/escalations"
-                  className={`flex items-center gap-3 px-6 py-3 transition-colors ${
-                    isActive('/manager/escalations')
-                      ? 'bg-[#FFF4E5] border-l-4 border-[#FF9900] font-semibold text-[#0F1111]'
-                      : 'text-[#0F1111] hover:bg-[#F7F8F8]'
-                  }`}
-                  onClick={closeMobileSidebar}
-                >
-                  <span className="text-xl">🚨</span>
-                  <span>Escalations</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/manager/performance"
-                  className={`flex items-center gap-3 px-6 py-3 transition-colors ${
-                    isActive('/manager/performance')
-                      ? 'bg-[#FFF4E5] border-l-4 border-[#FF9900] font-semibold text-[#0F1111]'
-                      : 'text-[#0F1111] hover:bg-[#F7F8F8]'
-                  }`}
-                  onClick={closeMobileSidebar}
-                >
-                  <span className="text-xl">📈</span>
-                  <span>Performance</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/manager/seller-performance"
-                  className={`flex items-center gap-3 px-6 py-3 transition-colors ${
-                    isActive('/manager/seller-performance')
-                      ? 'bg-[#FFF4E5] border-l-4 border-[#FF9900] font-semibold text-[#0F1111]'
-                      : 'text-[#0F1111] hover:bg-[#F7F8F8]'
-                  }`}
-                  onClick={closeMobileSidebar}
-                >
-                  <span className="text-xl">🏪</span>
-                  <span>Seller Performance</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/manager/review-moderation"
-                  className={`flex items-center gap-3 px-6 py-3 transition-colors ${
-                    isActive('/manager/review-moderation')
-                      ? 'bg-[#FFF4E5] border-l-4 border-[#FF9900] font-semibold text-[#0F1111]'
-                      : 'text-[#0F1111] hover:bg-[#F7F8F8]'
-                  }`}
-                  onClick={closeMobileSidebar}
-                >
-                  <span className="text-xl">⭐</span>
-                  <span>Review Moderation</span>
-                </Link>
-              </li>
+
+
+
+
+
               <li>
                 <Link
                   to="/manager/customer-feedback"
