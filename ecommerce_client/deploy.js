@@ -8,56 +8,53 @@ console.log('🚀 FastShop Frontend Deployment Helper\n');
 // Check if dist folder exists
 const distPath = path.join(__dirname, 'dist');
 if (!fs.existsSync(distPath)) {
-  console.log('❌ Build not found. Please run "npm run build" first.');
+  console.log('❌ Build files not found. Please run "npm run build" first.');
   process.exit(1);
 }
 
-console.log('✅ Build found in dist/ folder');
+console.log('✅ Build files found in dist/ folder');
+console.log('📦 Your frontend is ready for deployment!\n');
 
-// Check environment variables
-const envPath = path.join(__dirname, '.env.production');
-if (fs.existsSync(envPath)) {
-  const envContent = fs.readFileSync(envPath, 'utf8');
-  if (envContent.includes('ecomerce-backend-1-12i5.onrender.com')) {
-    console.log('✅ Backend URL configured correctly');
-  } else {
-    console.log('⚠️  Backend URL might not be configured correctly');
-  }
-} else {
-  console.log('⚠️  .env.production file not found');
-}
+console.log('🌐 Backend Configuration:');
+console.log('   API URL: https://ecomerce-backend-1-12i5.onrender.com/api');
+console.log('   Socket URL: https://ecomerce-backend-1-12i5.onrender.com\n');
 
-// Check for routing configuration files
-const routingFiles = [
-  { file: 'vercel.json', platform: 'Vercel' },
-  { file: 'public/_redirects', platform: 'Netlify' },
-  { file: 'public/.htaccess', platform: 'Apache/cPanel' }
-];
+console.log('📋 Deployment Options:\n');
 
-console.log('\n📁 Routing configuration files:');
-routingFiles.forEach(({ file, platform }) => {
-  if (fs.existsSync(path.join(__dirname, file))) {
-    console.log(`✅ ${file} (${platform})`);
-  } else {
-    console.log(`❌ ${file} (${platform}) - missing`);
-  }
-});
+console.log('1️⃣  NETLIFY (Recommended)');
+console.log('   • Go to https://netlify.com');
+console.log('   • Drag and drop the "dist" folder');
+console.log('   • Or connect your GitHub repository\n');
 
-console.log('\n🎯 Next steps:');
-console.log('1. Choose your hosting platform:');
-console.log('   • Vercel: Connect GitHub repo or upload dist/ folder');
-console.log('   • Netlify: Upload dist/ folder or connect GitHub repo');
-console.log('   • Render: Connect GitHub repo as Static Site');
-console.log('   • cPanel/Apache: Upload dist/ contents to public_html');
+console.log('2️⃣  VERCEL');
+console.log('   • Go to https://vercel.com');
+console.log('   • Import your GitHub repository');
+console.log('   • Build command: npm run build');
+console.log('   • Output directory: dist\n');
 
-console.log('\n2. Set environment variables on your hosting platform:');
+console.log('3️⃣  RENDER (Static Site)');
+console.log('   • Go to https://render.com');
+console.log('   • Create new Static Site');
+console.log('   • Build command: npm run build');
+console.log('   • Publish directory: dist\n');
+
+console.log('4️⃣  GITHUB PAGES');
+console.log('   • Push your code to GitHub');
+console.log('   • Go to repository Settings > Pages');
+console.log('   • Deploy from GitHub Actions\n');
+
+console.log('5️⃣  MANUAL UPLOAD');
+console.log('   • Upload contents of "dist" folder to your web host');
+console.log('   • Make sure to upload all files and folders\n');
+
+console.log('🔧 Environment Variables (if needed):');
 console.log('   VITE_API_URL=https://ecomerce-backend-1-12i5.onrender.com/api');
 console.log('   VITE_SOCKET_URL=https://ecomerce-backend-1-12i5.onrender.com');
-console.log('   VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51SxpBYGeSPbKvoudaS1MnfDu0WwmapRtNagFk0kEjGoRjQ5DvU3jmJyEQ3Vo87Cn42MRxlTsNiIPPOGHYKhr0dRl00dcHQSxIE');
+console.log('   VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51SxpBYGeSPbKvoudaS1MnfDu0WwmapRtNagFk0kEjGoRjQ5DvU3jmJyEQ3Vo87Cn42MRxlTsNiIPPOGHYKhr0dRl00dcHQSxIE\n');
 
-console.log('\n3. Test your deployment:');
-console.log('   • Navigate to different pages using header links');
-console.log('   • Try logging in and making API calls');
-console.log('   • Check browser console for errors');
+console.log('💡 Tips:');
+console.log('   • Test your deployment with "npm run preview" locally');
+console.log('   • Make sure your backend is running at the configured URL');
+console.log('   • Check browser console for any API connection errors\n');
 
-console.log('\n📖 For detailed instructions, see DEPLOYMENT.md');
+console.log('🎉 Happy deploying!');

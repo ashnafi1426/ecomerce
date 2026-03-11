@@ -113,22 +113,16 @@ const Header = () => {
         .hdr *, .hdr *::before, .hdr *::after { box-sizing: border-box; }
         .hdr a { color: inherit; text-decoration: none; }
 
-        /* ── Top bar ── */
-        .hdr-top { background: #232F3E; font-size: 14px; color: #ccc; }
-        .hdr-top-inner { max-width: 1500px; margin: 0 auto; padding: 8px 20px; display: flex; align-items: center; gap: 24px; }
-        .hdr-top a { color: #ccc; transition: color .15s; }
-        .hdr-top a:hover { color: #fff; text-decoration: underline; }
-
         /* ── Main bar ── */
-        .hdr-main { background: #131921; padding: 12px 16px; display: flex; align-items: center; gap: 8px; transition: box-shadow .2s; max-width: 1500px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        .hdr-main { background: #131921; padding: 8px 16px; display: flex; align-items: center; gap: 12px; transition: box-shadow .2s; width: 100%; box-sizing: border-box; }
         .hdr-main.scrolled { box-shadow: 0 4px 20px rgba(0,0,0,.7); }
 
         /* ── Logo ── */
-        .hdr-logo { display: flex; flex-direction: column; padding: 8px 10px; border: 1px solid transparent; border-radius: 3px; flex-shrink: 0; transition: border-color .15s; cursor: pointer; max-width: 140px; }
+        .hdr-logo { display: flex; align-items: center; padding: 4px 8px; border: 1px solid transparent; border-radius: 3px; flex-shrink: 0; transition: border-color .15s; cursor: pointer; }
         .hdr-logo:hover { border-color: #fff; }
-        .hdr-logo-name { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1; }
+        .hdr-logo-name { font-size: 24px; font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1; }
         .hdr-logo-name span { color: #FF9900; }
-        .hdr-logo-arrow { display: block; margin-top: 2px; }
+        .hdr-logo-arrow { display: none; }
 
         /* ── Language selector ── */
         .hdr-lang { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; }
@@ -137,34 +131,34 @@ const Header = () => {
         .hdr-lang-arr { font-size: 10px; color: #ccc; line-height: 1; }
 
         /* ── Deliver to ── */
-        .hdr-deliver { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; flex-shrink: 0; transition: border-color .15s; white-space: nowrap; max-width: 120px; }
+        .hdr-deliver { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; flex-shrink: 0; transition: border-color .15s; white-space: nowrap; }
         .hdr-deliver:hover { border-color: #fff; }
-        .hdr-deliver-icon { font-size: 20px; }
-        .hdr-deliver-line1 { font-size: 13px; color: #ccc; }
-        .hdr-deliver-line2 { font-size: 15px; font-weight: 700; color: #fff; }
+        .hdr-deliver-icon { font-size: 16px; }
+        .hdr-deliver-line1 { font-size: 12px; color: #ccc; }
+        .hdr-deliver-line2 { font-size: 14px; font-weight: 700; color: #fff; }
 
         /* ── Search bar ── */
-        .hdr-search { flex: 1; display: flex; height: 58px; border-radius: 6px; overflow: hidden; min-width: 300px; max-width: 800px; margin: 0 8px; }
-        .hdr-search-cat { background: #F3F3F3; border: none; padding: 0 8px 0 12px; font-size: 14px; color: #555; cursor: pointer; border-right: 1px solid #cdcdcd; min-width: 60px; max-width: 140px; flex-shrink: 0; }
+        .hdr-search { flex: 1; display: flex; height: 40px; border-radius: 4px; overflow: hidden; min-width: 300px; max-width: 600px; margin: 0 12px; }
+        .hdr-search-cat { background: #F3F3F3; border: none; padding: 0 8px; font-size: 13px; color: #555; cursor: pointer; border-right: 1px solid #cdcdcd; min-width: 50px; max-width: 120px; flex-shrink: 0; }
         .hdr-search-cat:hover { background: #e6e6e6; }
-        .hdr-search-input { flex: 1; border: none; padding: 0 16px; font-size: 16px; color: #111; outline: none; min-width: 0; background: #fff; width: 100%; }
-        .hdr-search-input:focus { outline: 3px solid #FF9900; outline-offset: -3px; }
-        .hdr-search-btn { background: #FF9900; border: none; padding: 0 20px; cursor: pointer; flex-shrink: 0; transition: background .15s; display: flex; align-items: center; justify-content: center; min-width: 50px; }
+        .hdr-search-input { flex: 1; border: none; padding: 0 12px; font-size: 14px; color: #111; outline: none; min-width: 0; background: #fff; }
+        .hdr-search-input:focus { outline: 2px solid #FF9900; outline-offset: -2px; }
+        .hdr-search-btn { background: #FF9900; border: none; padding: 0 16px; cursor: pointer; flex-shrink: 0; transition: background .15s; display: flex; align-items: center; justify-content: center; }
         .hdr-search-btn:hover { background: #e67e00; }
 
         /* ── Right actions ── */
-        .hdr-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; min-width: fit-content; }
-        .hdr-action { padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; text-align: left; text-decoration: none; display: flex; flex-direction: column; min-width: fit-content; }
+        .hdr-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .hdr-action { padding: 4px 6px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; flex-shrink: 0; background: none; color: #fff; text-align: left; text-decoration: none; display: flex; flex-direction: column; }
         .hdr-action:hover { border-color: #fff; }
-        .hdr-action-line1 { font-size: 13px; color: #ccc; white-space: nowrap; }
-        .hdr-action-line2 { font-size: 15px; font-weight: 700; white-space: nowrap; }
+        .hdr-action-line1 { font-size: 12px; color: #ccc; white-space: nowrap; }
+        .hdr-action-line2 { font-size: 14px; font-weight: 700; white-space: nowrap; }
 
         /* ── Cart ── */
-        .hdr-cart { display: flex; align-items: center; gap: 4px; padding: 8px 10px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; text-decoration: none; color: #fff; }
+        .hdr-cart { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: border-color .15s; text-decoration: none; color: #fff; }
         .hdr-cart:hover { border-color: #fff; }
-        .hdr-cart-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
-        .hdr-cart-count { color: #FF9900; font-size: 22px; font-weight: 700; line-height: 1.1; text-align: center; min-width: 20px; }
-        .hdr-cart-label { font-size: 17px; font-weight: 700; }
+        .hdr-cart-wrap { position: relative; display: flex; align-items: center; gap: 4px; }
+        .hdr-cart-count { color: #FF9900; font-size: 18px; font-weight: 700; line-height: 1; }
+        .hdr-cart-label { font-size: 14px; font-weight: 700; }
 
         /* ── Dropdowns ── */
         .hdr-dropdown { position: fixed; background: #fff; color: #111; border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.2); z-index: 99999; animation: hdrFadeIn .12s ease; }
@@ -198,58 +192,39 @@ const Header = () => {
         @media (max-width: 1199px) { 
           .hdr-deliver { display: none; } 
           .hdr-lang { display: none !important; }
-          .hdr-main { gap: 12px; }
-          .hdr-search { max-width: 600px; }
-        }
-        @media (max-width: 899px) {
-          .hdr-main { padding: 10px 16px; gap: 10px; }
-          .hdr-action-line1 { display: none; }
-          .hdr-cart-label { display: none; }
-          .hdr-search-cat { min-width: 60px; max-width: 120px; padding: 0 6px 0 8px; }
-          .hdr-search-btn { padding: 0 18px; min-width: 50px; }
+          .hdr-main { gap: 8px; }
           .hdr-search { max-width: 500px; }
         }
+        @media (max-width: 899px) {
+          .hdr-main { padding: 6px 12px; gap: 6px; }
+          .hdr-action-line1 { display: none; }
+          .hdr-cart-label { display: none; }
+          .hdr-search-cat { min-width: 50px; max-width: 100px; padding: 0 6px; }
+          .hdr-search-btn { padding: 0 12px; }
+          .hdr-search { max-width: 400px; height: 36px; }
+        }
         @media (max-width: 767px) {
-          .hdr-top { display: none; }
-          .hdr-main { padding: 10px 12px; gap: 8px; }
+          .hdr-main { padding: 6px 10px; gap: 4px; }
           .hdr-hamburger { display: flex; }
           .hdr-search-cat { display: none; }
           .hdr-action-line1, .hdr-action-line2 { display: none; }
           .hdr-orders, .hdr-wishlist, .hdr-notifications { display: none !important; }
           .hdr-cart-label { display: none; }
-          .hdr-logo-sub { display: none; }
-          .hdr-action { padding: 6px 7px; }
-          .hdr-action-icon { font-size: 26px; display: block !important; }
-          .hdr-logo-name { font-size: 22px; }
-          .hdr-search-input { padding: 0 12px; }
-          .hdr-search-btn { padding: 0 16px; min-width: 45px; }
-          .hdr-search { min-width: 200px; max-width: none; }
+          .hdr-action { padding: 4px 5px; }
+          .hdr-action-icon { font-size: 20px; display: block !important; }
+          .hdr-logo-name { font-size: 20px; }
+          .hdr-search-input { padding: 0 10px; }
+          .hdr-search-btn { padding: 0 12px; }
+          .hdr-search { min-width: 180px; height: 32px; }
         }
         @media (max-width: 479px) {
-          .hdr-main { padding: 8px 10px; gap: 6px; }
-          .hdr-logo-name { font-size: 20px; }
-          .hdr-search { height: 44px; min-width: 150px; }
-          .hdr-search-btn { padding: 0 14px; min-width: 40px; }
-          .hdr-search-input { padding: 0 10px; }
+          .hdr-main { padding: 4px 8px; gap: 4px; }
+          .hdr-logo-name { font-size: 18px; }
+          .hdr-search { height: 32px; min-width: 150px; }
+          .hdr-search-btn { padding: 0 10px; }
+          .hdr-search-input { padding: 0 8px; font-size: 13px; }
         }
       `}</style>
-
-      {/* ── Top bar ── */}
-      <div className="hdr-top">
-        <div className="hdr-top-inner">
-          <span>Free shipping on orders over $35</span>
-          <span>•</span>
-          <Link to="/customer-service">Customer Service</Link>
-          <span>•</span>
-          <Link to="/seller/register">Sell</Link>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 16 }}>
-            <Link to="/prime">Try Prime</Link>
-            <Link to="/deals">Today's Deals</Link>
-          </div>
-        </div>
-      </div>
-
-
 
       {/* ── Main bar ── */}
       <div className={`hdr-main${scrolled ? ' scrolled' : ''}`}>
@@ -267,10 +242,6 @@ const Header = () => {
         {/* Logo */}
         <Link to="/" className="hdr-logo">
           <span className="hdr-logo-name">fast<span>shop</span></span>
-          <svg className="hdr-logo-arrow" width="82" height="13" viewBox="0 0 82 13" fill="none">
-            <path d="M3 7 Q41 15 76 7" stroke="#FF9900" strokeWidth="2.3" strokeLinecap="round" fill="none" />
-            <path d="M70 4 L76 7 L70 10" stroke="#FF9900" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-          </svg>
         </Link>
 
         {/* Deliver to (desktop ≥1200px) */}
@@ -427,13 +398,13 @@ const Header = () => {
           <Link to="/cart" className="hdr-cart">
             <div className="hdr-cart-wrap">
               <span className="hdr-cart-count">{cartCount > 99 ? '99+' : cartCount}</span>
-              <svg width="44" height="34" viewBox="0 0 34 28" fill="none">
-                <path d="M2 2h3l4.5 16h14l3-10H8" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="13" cy="25" r="2" fill="white" />
-                <circle cx="24" cy="25" r="2" fill="white" />
+              <svg width="32" height="24" viewBox="0 0 32 24" fill="none">
+                <path d="M2 2h3l3.5 12h12l2.5-8H8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="20" r="1.5" fill="white" />
+                <circle cx="22" cy="20" r="1.5" fill="white" />
               </svg>
+              <span className="hdr-cart-label">{t('basket')}</span>
             </div>
-            <span className="hdr-cart-label">{t('basket')}</span>
           </Link>
         </div>
       </div>
